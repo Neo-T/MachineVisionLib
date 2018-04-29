@@ -14,15 +14,6 @@
 #include <mswsock.h>
 #include <vector>
 
-#define NEED_GPU	0
-#if NEED_GPU
-#pragma comment(lib,"cublas.lib")
-#pragma comment(lib,"cuda.lib")
-#pragma comment(lib,"cudart.lib")
-#pragma comment(lib,"curand.lib")
-#pragma comment(lib,"cudnn.lib")
-#endif
-
 using namespace std;
 
 //* ¹«¹²º¯Êý¿â
@@ -43,4 +34,6 @@ namespace common_lib {
 	COMMON_LIB_API BOOL IsProcExist(CHAR *pszProcName, ...);		
 
 	COMMON_LIB_API UINT GetWorkPath(CHAR *pszPath, UINT unPathBytes);
+
+	COMMON_LIB_API INT EatZeroOfTheNumberTail(INT nNum);
 };

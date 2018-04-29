@@ -15,7 +15,9 @@
 #include <opencv2/dnn/shape_utils.hpp>
 #include <opencv.hpp>
 #include <opencv2/core/utils/trace.hpp> 
+
 using namespace cv;
+using namespace common_lib;
 using namespace cv::ml;
 using namespace cv::dnn;
 using namespace std;
