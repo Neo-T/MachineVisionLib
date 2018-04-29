@@ -76,7 +76,7 @@
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(SolutionDir)common_lib;D:\work\OpenCV\libfacedetection\include;$(IncludePath)</IncludePath>
     <LibraryPath>D:\work\OpenCV\libfacedetection\lib;$(LibraryPath)</LibraryPath>
-    <TargetName>$(ProjectName)d</TargetName>
+    <TargetName>$(ProjectName)D</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -113,7 +113,7 @@
       <AdditionalDependencies>common_libd.lib;opencv_world340d.lib;caffe.lib;caffeproto.lib;caffehdf5_D.lib;caffehdf5_hl_D.lib;gflagsd.lib;glogd.lib;leveldbd.lib;libprotobufd.lib;libopenblas.dll.a;lmdbd.lib;boost_python3-vc140-mt-1_61.lib;boost_thread-vc140-mt-1_61.lib;compute_image_mean.lib;convert_imageset.lib;libfacedetect-x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(SolutionDir)$(Platform)\$(Configuration)\$(ProjectName)d.dll $(SolutionDir)$(Platform)\bind\$(ProjectName)d.dll</Command>
+      <Command>copy $(SolutionDir)$(Platform)\$(Configuration)\$(ProjectName)D.dll $(SolutionDir)$(Platform)\binD\$(ProjectName)D.dll</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">

@@ -10,6 +10,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MachineVisionLib", "Machine
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "common_lib", "common_lib\common_lib.vcxproj", "{C8B5917D-0C8F-433A-B20A-84E091005255}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WhoYouAre", "WhoYouAre\WhoYouAre.vcxproj", "{A3162A92-45C8-4388-BAB3-F86671C43EBC}"
+	ProjectSection(ProjectDependencies) = postProject
+		{31487061-DB4B-47A4-8F67-200FC53A97BA} = {31487061-DB4B-47A4-8F67-200FC53A97BA}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -34,6 +39,14 @@ Global
 		{C8B5917D-0C8F-433A-B20A-84E091005255}.Release|x64.Build.0 = Release|x64
 		{C8B5917D-0C8F-433A-B20A-84E091005255}.Release|x86.ActiveCfg = Release|Win32
 		{C8B5917D-0C8F-433A-B20A-84E091005255}.Release|x86.Build.0 = Release|Win32
+		{A3162A92-45C8-4388-BAB3-F86671C43EBC}.Debug|x64.ActiveCfg = Debug|x64
+		{A3162A92-45C8-4388-BAB3-F86671C43EBC}.Debug|x64.Build.0 = Debug|x64
+		{A3162A92-45C8-4388-BAB3-F86671C43EBC}.Debug|x86.ActiveCfg = Debug|Win32
+		{A3162A92-45C8-4388-BAB3-F86671C43EBC}.Debug|x86.Build.0 = Debug|Win32
+		{A3162A92-45C8-4388-BAB3-F86671C43EBC}.Release|x64.ActiveCfg = Release|x64
+		{A3162A92-45C8-4388-BAB3-F86671C43EBC}.Release|x64.Build.0 = Release|x64
+		{A3162A92-45C8-4388-BAB3-F86671C43EBC}.Release|x86.ActiveCfg = Release|Win32
+		{A3162A92-45C8-4388-BAB3-F86671C43EBC}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
