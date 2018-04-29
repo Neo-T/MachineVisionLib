@@ -219,16 +219,6 @@ MACHINEVISIONLIB_API string cv2shell::CV2HashValue(const CHAR *pszImgName, PST_I
 	return CV2HashValue(matImg, pstResize);
 }
 
-//* 吃掉自然数尾部的0，比如:
-//* 720->72, 1280->128，或者6400->64等
-static INT __EatZeroOfTheNumberTail(INT nNum)
-{
-	if (nNum % 10 == 0)
-		return __EatZeroOfTheNumberTail(nNum / 10);
-	else
-		return nNum;
-}
-
 //* 计算等比例（步长为8）缩小图像尺寸至其中一维（2D图片的长宽两维）不能被8整出且大于8的最小图片尺寸，比如：
 //* 72 x 128 -> 9 x 16
 static void __GetResizeValue(PST_IMG_RESIZE pstResize)
@@ -250,8 +240,8 @@ MACHINEVISIONLIB_API ST_IMG_RESIZE cv2shell::CV2GetResizeValue(Mat &matImg)
 {
 	ST_IMG_RESIZE stSize;
 
-	stSize.nRows = __EatZeroOfTheNumberTail(matImg.rows);
-	stSize.nCols = __EatZeroOfTheNumberTail(matImg.cols);
+	stSize.nRows = EatZeroOfTheNumberTail(matImg.rows);
+	stSize.nCols = EatZeroOfTheNumberTail(matImg.cols);
 
 	__GetResizeValue(&stSize);
 
