@@ -43,4 +43,6 @@ namespace common_lib {
 	COMMON_LIB_API BOOL IsProcExist(CHAR *pszProcName, ...);		
 
 	COMMON_LIB_API UINT GetWorkPath(CHAR *pszPath, UINT unPathBytes);
+
+	COMMON_LIB_API INT EatZeroOfTheNumberTail(INT nNum);
 };

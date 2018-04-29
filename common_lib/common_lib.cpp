@@ -373,3 +373,13 @@ COMMON_LIB_API UINT common_lib::GetWorkPath(CHAR *pszPath, UINT unPathBytes)
 	return 0;
 }
 
+//* 吃掉自然数尾部的0，比如:
+//* 720->72, 1280->128，或者6400->64等
+COMMON_LIB_API INT common_lib::EatZeroOfTheNumberTail(INT nNum)
+{
+	if (nNum % 10 == 0)
+		return EatZeroOfTheNumberTail(nNum / 10);
+	else
+		return nNum;
+}
+
