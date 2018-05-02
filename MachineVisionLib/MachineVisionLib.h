@@ -6,6 +6,8 @@
 // 符号视为是被导出的。
 //* How to compile DLib:
 //* https://blog.csdn.net/xingchenbingbuyu/article/details/53236541
+//* 配置VS2015
+//* https://blog.csdn.net/flyyufenfei/article/details/79176136
 #ifdef MACHINEVISIONLIB_EXPORTS
 #define MACHINEVISIONLIB_API __declspec(dllexport)
 #else
