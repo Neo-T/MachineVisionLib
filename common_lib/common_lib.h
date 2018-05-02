@@ -12,6 +12,7 @@
 
 #include <winsock2.h>
 #include <mswsock.h>
+#include <iostream>
 #include <vector>
 
 using namespace std;
