@@ -1,16 +1,7 @@
 #include "stdafx.h"
-#include "FaceDetect.h"
-#include "FaceRotate.h"
-#include "FaceProcessing.h"
-#include "ExtractFeature_.h"
-#include "ComputeDistance.h"
+#include <opencv.hpp>
 
 using namespace std;
-using namespace dlib;
-
-/*
-D:\work\OpenCV\caffe\scripts\build\install\bin;C:\Users\user\.caffe\dependencies\libraries_v140_x64_py35_1.1.0\libraries\lib
-*/
 
 void Example1(void)
 {
