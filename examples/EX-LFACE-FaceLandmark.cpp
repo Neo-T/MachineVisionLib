@@ -18,7 +18,7 @@ int main(int argc, char** argv)
 		return -1;
 	}
 	
-	Mat matSrc = imread("D:\\work\\SC\\DlibTest\\x64\\Release\\LenaHeadey-6.jpg");
+	Mat matSrc = imread("D:\\work\\SC\\DlibTest\\x64\\Release\\LenaHeadey-2.jpg");
 	Mat matGray;
 	cvtColor(matSrc, matGray, CV_BGR2GRAY);
 
@@ -42,10 +42,16 @@ int main(int argc, char** argv)
 
 			if (nLandmark)
 			{
-				//* 官方文档给出的例子就是68个点
-				for (INT j = 0; j < 68; j++)
+				//* 官方文档给出的例子就是68个点,脸部到鼻子:0-35, 眼睛:36-47,嘴形：48-60，嘴线：60-67
+				for (INT j = 60; j < 68; j++)
 				{
 					circle(matSrc, Point((INT)psScalar[6 + 2 * j], (INT)psScalar[6 + 2 * j + 1]), 1, Scalar(0, 0, 255), 2);
+					cout << j << ":" << (INT)psScalar[6 + 2 * j] << ", " << (INT)psScalar[6 + 2 * j + 1] << endl;
+
+					//if(j%2)
+					//	putText(matSrc, to_string(j), Point((INT)psScalar[6 + 2 * j] + 3, (INT)psScalar[6 + 2 * j + 1]), CV_FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 255));
+					//else
+					//	putText(matSrc, to_string(j), Point((INT)psScalar[6 + 2 * j] - 3, (INT)psScalar[6 + 2 * j + 1]), CV_FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 255));
 				}
 			}
 		}		
