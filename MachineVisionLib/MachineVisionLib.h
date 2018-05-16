@@ -20,6 +20,8 @@
 #include <opencv.hpp>
 #include <opencv2/core/utils/trace.hpp> 
 
+#define NEED_GPU	0
+
 using namespace cv;
 using namespace common_lib;
 using namespace cv::ml;
@@ -55,10 +57,7 @@ public:
 
 class MACHINEVISIONLIB_API Face {
 public:
-	Face()
-	{
-		flConfidenceVal = 0;
-	};
+	Face() : flConfidenceVal(0){}
 	float flConfidenceVal;
 
 	INT xLeftBottom;

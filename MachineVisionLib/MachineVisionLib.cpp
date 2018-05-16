@@ -11,7 +11,6 @@
 #include "common_lib.h"
 #include "MachineVisionLib.h"
 
-#define NEED_GPU	0
 #if NEED_GPU
 #pragma comment(lib,"cublas.lib")
 #pragma comment(lib,"cuda.lib")
