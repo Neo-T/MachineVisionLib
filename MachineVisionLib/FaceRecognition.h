@@ -21,5 +21,5 @@ public:
 
 	~FaceDatabase(){}
 
-	caffe::Net<float> *ca_fl_net;
+	caffe::Net<float> *caflNet;
 };

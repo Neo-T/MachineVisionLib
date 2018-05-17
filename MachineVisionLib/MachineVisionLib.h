@@ -19,6 +19,7 @@
 #include <opencv2/dnn/shape_utils.hpp>
 #include <opencv.hpp>
 #include <opencv2/core/utils/trace.hpp> 
+#include <caffe/caffe.hpp>
 
 #define NEED_GPU	0
 
@@ -123,6 +124,14 @@ namespace cv2shell {
 	MACHINEVISIONLIB_API void MarkObjectWithRectangle(const CHAR *pszImgName, Net &dnnNet, vector<string> &vClassNames, const Size &size, FLOAT flConfidenceThreshold = 0.4, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 117.0, 123.0));
 	MACHINEVISIONLIB_API void MarkObjectWithRectangle(const CHAR *pszImgName, Net &dnnNet, vector<string> &vClassNames, FLOAT flConfidenceThreshold = 0.4, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUILATERAL, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 117.0, 123.0));
 	MACHINEVISIONLIB_API INT GetObjectNum(vector<RecogCategory> &vObjects, string strObjectName, FLOAT *pflConfidenceOfExist, FLOAT *pflConfidenceOfObjectNum);
+};
+
+//* caffe接口
+//* 关于神经网络前向传播和后向传播的入门文章
+//* https://blog.csdn.net/zhangjunhit/article/details/53501680
+namespace caffe2shell {
+	template <typename DType>
+	MACHINEVISIONLIB_API caffe::Net<DType>* LoadNet(std::string strParamFile, std::string strModelFile, caffe::Phase phase);
 };
 
 class MACHINEVISIONLIB_API ImgMatcher {

@@ -1101,3 +1101,15 @@ CMachineVisionLib::CMachineVisionLib()
 {
     return;
 }
+
+template <typename DType>
+MACHINEVISIONLIB_API caffe::Net<DType>* LoadNet(std::string strParamFile, std::string strModelFile, caffe::Phase phase)
+{
+	caffe::Net<Dtype>* caNet(new caffe::Net<DType>(strParamFile, phase));
+	if (!caNet)
+		return NULL;
+
+	caNet->CopyTrainedLayersFrom(strModelFile);
+
+	return caNet;
+}
