@@ -17,9 +17,9 @@ public:
 #endif
 	}
 
-	BOOL LoadVGGNet(string strCaffeModelFile, string strPrototxt);
+	BOOL LoadCaffeVGGNet(string strCaffePrototxtFile, string strCaffeModelFile);
 
 	~FaceDatabase(){}
 
-	caffe::Net<float> *caflNet;
+	caffe::Net<FLOAT> *caflNet;
 };

@@ -12,9 +12,13 @@
 #include "MachineVisionLib.h"
 #include "FaceRecognition.h"
 
-BOOL FaceDatabase::LoadVGGNet(string strCaffeModelFile, string strPrototxt)
+BOOL FaceDatabase::LoadCaffeVGGNet(string strCaffePrototxtFile, string strCaffeModelFile)
 {
-	ca_fl_net = new caffe::Net<float>(strPrototxt, caffe::TEST);
-	ca_fl_net->CopyTrainedLayersFrom(strCaffeModelFile);
+	caflNet = caffe2shell::LoadNet<FLOAT>(strCaffePrototxtFile, strCaffeModelFile, caffe::TEST);
+
+	if (caflNet)
+		return TRUE;
+	else
+		return FALSE;
 }
 

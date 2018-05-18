@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <tchar.h>
+#include <io.h>
 #include <vector>
 #include <facedetect-dll.h>
 #include "common_lib.h"
@@ -1103,12 +1104,22 @@ CMachineVisionLib::CMachineVisionLib()
 }
 
 template <typename DType>
-MACHINEVISIONLIB_API caffe::Net<DType>* LoadNet(std::string strParamFile, std::string strModelFile, caffe::Phase phase)
+MACHINEVISIONLIB_API caffe::Net<DType>* caffe2shell::LoadNet(std::string strParamFile, std::string strModelFile, caffe::Phase phase)
 {
-	caffe::Net<Dtype>* caNet(new caffe::Net<DType>(strParamFile, phase));
-	if (!caNet)
+	//* _access()函数的第2个参数0代表对文件的访问权限，0：检查文件是否存在，2：写，4：读，6：读写
+	if (_access(strParamFile.c_str(), 0) == -1)
+	{
+		cout << "file " << strParamFile << "not exist!" << endl;
 		return NULL;
+	}
 
+	if (_access(strModelFile.c_str(), 0) == -1)
+	{
+		cout << "file " << strModelFile << "not exist!" << endl;
+		return NULL;
+	}
+
+	caffe::Net<DType>* caNet(new caffe::Net<DType>(strParamFile, phase));
 	caNet->CopyTrainedLayersFrom(strModelFile);
 
 	return caNet;
