@@ -7,6 +7,19 @@
 
 #include "caffe/caffe.hpp"
 
+namespace caffe
+{
+	extern INSTANTIATE_CLASS(InputLayer);
+	extern INSTANTIATE_CLASS(InnerProductLayer);
+	extern INSTANTIATE_CLASS(DropoutLayer);
+	extern INSTANTIATE_CLASS(ConvolutionLayer);
+	extern INSTANTIATE_CLASS(ReLULayer);
+	extern INSTANTIATE_CLASS(PoolingLayer);
+	extern INSTANTIATE_CLASS(LRNLayer);
+	extern INSTANTIATE_CLASS(SoftmaxLayer);
+	extern INSTANTIATE_CLASS(MemoryDataLayer);
+}
+
 class FACERECOGNITION_API FaceDatabase {
 public:
 	FaceDatabase() {

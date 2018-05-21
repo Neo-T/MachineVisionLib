@@ -19,7 +19,20 @@
 #include <opencv2/dnn/shape_utils.hpp>
 #include <opencv.hpp>
 #include <opencv2/core/utils/trace.hpp> 
+
+#ifndef USE_OPENCV	//* 解决AddMatVector()不存在的问题
+#define USE_OPENCV
 #include <caffe/caffe.hpp>
+#include <caffe/layers/input_layer.hpp>
+#include <caffe/layers/inner_product_layer.hpp>
+#include <caffe/layers/dropout_layer.hpp>
+#include <caffe/layers/conv_layer.hpp>
+#include <caffe/layers/relu_layer.hpp>
+#include <caffe/layers/memory_data_layer.hpp>
+#include <caffe/layers/pooling_layer.hpp>
+#include <caffe/layers/lrn_layer.hpp>
+#include <caffe/layers/softmax_layer.hpp>
+#endif
 
 #define NEED_GPU	0
 
