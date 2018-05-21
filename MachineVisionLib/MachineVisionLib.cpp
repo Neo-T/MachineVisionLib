@@ -1104,7 +1104,7 @@ CMachineVisionLib::CMachineVisionLib()
 }
 
 template <typename DType>
-MACHINEVISIONLIB_API caffe::Net<DType>* caffe2shell::LoadNet(std::string strParamFile, std::string strModelFile, caffe::Phase phase)
+caffe::Net<DType>* caffe2shell::LoadNet(std::string strParamFile, std::string strModelFile, caffe::Phase phase)
 {
 	//* _access()函数的第2个参数0代表对文件的访问权限，0：检查文件是否存在，2：写，4：读，6：读写
 	if (_access(strParamFile.c_str(), 0) == -1)

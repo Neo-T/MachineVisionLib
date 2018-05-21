@@ -130,8 +130,11 @@ namespace cv2shell {
 //* 关于神经网络前向传播和后向传播的入门文章
 //* https://blog.csdn.net/zhangjunhit/article/details/53501680
 namespace caffe2shell {
-	template <typename DType>
-	MACHINEVISIONLIB_API caffe::Net<DType>* LoadNet(std::string strParamFile, std::string strModelFile, caffe::Phase phase);
+	//* 模板函数一定要被人为实例化，否则编译器无法导出，函数无法被真正使用，参见：
+	//* https://blog.csdn.net/liyuanbhu/article/details/50363670
+	template <typename DType> caffe::Net<DType>* LoadNet(std::string strParamFile, std::string strModelFile, caffe::Phase phase);	
+	template MACHINEVISIONLIB_API caffe::Net<FLOAT>* caffe2shell::LoadNet(std::string strParamFile, std::string strModelFile, caffe::Phase phase);
+	template MACHINEVISIONLIB_API caffe::Net<DOUBLE>* caffe2shell::LoadNet(std::string strParamFile, std::string strModelFile, caffe::Phase phase);
 };
 
 class MACHINEVISIONLIB_API ImgMatcher {
