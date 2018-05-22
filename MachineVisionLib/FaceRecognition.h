@@ -29,10 +29,15 @@ public:
 		caffe::Caffe::set_mode(caffe::Caffe::CPU);
 #endif
 	}
+	~FaceDatabase() {}
 
 	BOOL LoadCaffeVGGNet(string strCaffePrototxtFile, string strCaffeModelFile);
 
-	~FaceDatabase(){}
+	BOOL AddFace(const CHAR *pszImgName);
+	BOOL AddFace(Mat& matFace);
 
 	caffe::Net<FLOAT> *caflNet;
+
+private:
+	Mat FaceChipsHandle(Mat& matFaceChips);
 };

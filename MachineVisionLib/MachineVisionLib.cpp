@@ -8,6 +8,15 @@
 #include <tchar.h>
 #include <io.h>
 #include <vector>
+
+#include <dlib/image_processing/frontal_face_detector.h>
+#include <dlib/image_processing/render_face_detections.h>
+#include <dlib/image_processing.h>
+#include <dlib/gui_widgets.h>
+#include <dlib/image_io.h>
+#include <dlib/opencv/cv_image.h>
+#include <dlib/opencv.h>
+
 #include <facedetect-dll.h>
 #include "common_lib.h"
 #include "MachineVisionLib.h"
@@ -680,7 +689,7 @@ MACHINEVISIONLIB_API Mat cv2shell::FaceDetect(Net &dnnNet, const CHAR *pszImgNam
 	return FaceDetect(dnnNet, matImg, size, flScale, mean);
 }
 
-//* 参数vFaces用于保存检测到的人脸信息
+//* 参数vFaces用于保存检测到的人脸信息，是一个输出参数
 MACHINEVISIONLIB_API void cv2shell::FaceDetect(Net &dnnNet, Mat &matImg, vector<Face> &vFaces, const Size &size,
 	FLOAT flConfidenceThreshold, FLOAT flScale, const Scalar &mean)
 {
@@ -720,7 +729,7 @@ MACHINEVISIONLIB_API void cv2shell::FaceDetect(Net &dnnNet, Mat &matImg, vector<
 	{
 		Size size = __ResizeImgToSpecPixel(matImg, 288); //* 实测288效果最好
 
-		return FaceDetect(dnnNet, matImg, vFaces, size, flConfidenceThreshold, flScale, mean);
+		FaceDetect(dnnNet, matImg, vFaces, size, flConfidenceThreshold, flScale, mean);
 	}
 	else
 	{
@@ -731,7 +740,7 @@ MACHINEVISIONLIB_API void cv2shell::FaceDetect(Net &dnnNet, Mat &matImg, vector<
 		//imshow("Equilateral", matEquilateralImg);	
 		//imwrite("D:\\work\\OpenCV\\resize_test.jpg", matEquilateralImg);
 
-		return FaceDetect(dnnNet, matEquilateralImg, vFaces, Size(300, 300), flConfidenceThreshold, flScale, mean);
+		FaceDetect(dnnNet, matEquilateralImg, vFaces, Size(300, 300), flConfidenceThreshold, flScale, mean);
 	}
 }
 
@@ -869,6 +878,80 @@ MACHINEVISIONLIB_API void cv2shell::MarkFaceWithRectangle(Mat &matImg, vector<Fa
 
 	namedWindow("Face Detect Result", 0);
 	imshow("Face Detect Result", matImg);
+}
+
+MACHINEVISIONLIB_API Mat cv2shell::ExtractFaceChips(Mat matImg, FLOAT flScale, INT nMinNeighbors, INT nMinPossibleFaceSize)
+{
+	Mat matDummy;
+
+	INT *pnFaces = NULL;
+	UCHAR *pubResultBuf = (UCHAR*)malloc(LIBFACEDETECT_BUFFER_SIZE);
+	if (!pubResultBuf)
+	{
+		cout << "error para in " << __FUNCTION__ << "(), in file " << __FILE__ << ", line " << __LINE__ - 3 << ", malloc error code:" << GetLastError() << endl;		
+		return matDummy;
+	}
+
+	Mat matGray;
+	cvtColor(matImg, matGray, CV_BGR2GRAY);
+
+	//* 带特征点检测，这个函数要比DLib的特征点检测函数稍微快一些
+	INT nLandmark = 1;
+	pnFaces = facedetect_multiview_reinforce(pubResultBuf, (UCHAR*)(matGray.ptr(0)), matGray.cols, matGray.rows, (INT)matGray.step,
+												flScale, nMinNeighbors, nMinPossibleFaceSize, 0, nLandmark);	
+	if (!pnFaces)
+	{ 
+		cout << "Error: No face was detected." << endl;
+		return matDummy;
+	}
+
+	//* 单张图片只允许存在一个人脸
+	if (*pnFaces != 1)
+	{
+		cout << "Error: Multiple faces were detected, and only one face was allowed." << endl;
+		return matDummy;
+	}
+
+	//* 获取68个脸部特征点，脸部到鼻子:0-35, 眼睛:36-47,嘴形：48-60，嘴线：61-67
+	SHORT *psScalar = ((SHORT*)(pnFaces + 1));
+	vector<dlib::point> vFaceFeature;
+	for (INT j = 0; j < 68; j++)
+		vFaceFeature.push_back(dlib::point((INT)psScalar[6 + 2 * j], (INT)psScalar[6 + 2 * j + 1]));
+
+	//* 为了速度，牺牲了部分可读性：
+	//* psScalar的0、1、2、3分别代表坐标x、y、width、height，如此：
+	//* rect()的四个参数分别是左上角坐标和右下角坐标
+	dlib::rectangle rect(psScalar[0], psScalar[1], psScalar[0] + psScalar[2] - 1, psScalar[1] + psScalar[3] - 1);
+
+	//* 将68个特征点转为dlib数据
+	dlib::full_object_detection shape(rect, vFaceFeature);
+	vector<dlib::full_object_detection> shapes;
+	shapes.push_back(shape);
+
+	dlib::array<dlib::array2d<dlib::rgb_pixel>> FaceChips;
+	extract_image_chips(dlib::cv_image<uchar>(matGray), get_face_chip_details(shapes), FaceChips);
+	Mat matFace = dlib::toMat(FaceChips[0]);
+
+	//* 再转换一次，toMat后不是CV_BGR2GRAY格式
+	cvtColor(matFace, matFace, CV_BGR2GRAY);
+	resize(matFace, matFace, Size(224, 224));
+
+	free(pubResultBuf);
+
+	return matFace;
+}
+
+MACHINEVISIONLIB_API Mat cv2shell::ExtractFaceChips(const CHAR *pszImgName, FLOAT flScale, INT nMinNeighbors, INT nMinPossibleFaceSize)
+{
+	Mat matImg = imread(pszImgName);
+	if (matImg.empty())
+	{
+		cout << "ExtractFaceChips() error：unable to read the picture, please confirm that the picture『" << pszImgName << "』 exists and the format is corrrect." << endl;
+
+		return matImg;
+	}
+
+	return ExtractFaceChips(matImg, flScale, nMinNeighbors, nMinPossibleFaceSize);
 }
 
 //* 初始化轻型分类器，其实就是把DNN网络配置文件和训练好的模型加载到内存并据此建立DNN网络

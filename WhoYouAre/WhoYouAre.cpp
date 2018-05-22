@@ -28,6 +28,8 @@ int _tmain(int argc, _TCHAR* argv[])
 		return - 1;
 	}
 
+	face_db.AddFace("D:\\work\\SC\\DlibTest\\x64\\Release\\LenaHeadey-2.jpg");
+
     return 0;
 }
 
