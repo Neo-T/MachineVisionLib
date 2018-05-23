@@ -933,7 +933,8 @@ MACHINEVISIONLIB_API Mat cv2shell::ExtractFaceChips(Mat matImg, FLOAT flScale, I
 	Mat matFace = dlib::toMat(FaceChips[0]);
 
 	//* 再转换一次，toMat后不是CV_BGR2GRAY格式
-	cvtColor(matFace, matFace, CV_BGR2GRAY);
+	//* 后来实验证明这个不需要了，故注释掉
+	//cvtColor(matFace, matFace, CV_BGR2GRAY);
 	resize(matFace, matFace, Size(224, 224));
 
 	free(pubResultBuf);
