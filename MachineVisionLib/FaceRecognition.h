@@ -39,5 +39,5 @@ public:
 	caffe::Net<FLOAT> *caflNet;
 
 private:
-	Mat FaceChipsHandle(Mat& matFaceChips, DOUBLE dblPowerValue = 0.1, DOUBLE dblGamma = 0.2, DOUBLE dblSigma0 = 1, DOUBLE dblSigma1 = -2, DOUBLE dblNorm = 10);
+	Mat FaceChipsHandle(Mat& matFaceChips, DOUBLE dblPowerValue = 0.1, DOUBLE dblGamma = 0.2, DOUBLE dblNorm = 10);	
 };

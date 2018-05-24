@@ -1208,3 +1208,19 @@ caffe::Net<DType>* caffe2shell::LoadNet(std::string strParamFile, std::string st
 
 	return caNet;
 }
+
+//* 提取图像特征
+template <typename DType> 
+void caffe2shell::ExtractFeature(caffe::Net<DType> *pNet, caffe::MemoryDataLayer<DType> *pMemDataLayer, 
+									Mat& matImgROI, vector<DType>& vImgFeature, INT nFeatureDimension, const CHAR *pszBlobName)
+{
+	//* 将数据和标签放入网络
+	vector<Mat> vmatImgROI;
+	vector<INT> vnLabel;
+	vmatImgROI.push_back(matImgROI);
+	vnLabel.push_back(0);
+	pMemDataLayer->AddMatVector(vmatImgROI, vnLabel);
+
+	pNet->Forward();
+	boost::shared_ptr<caffe::Blob<DType>> blob = pNet->blob_by_name(pszBlobName);
+}

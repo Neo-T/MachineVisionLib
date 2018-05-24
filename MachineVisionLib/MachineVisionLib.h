@@ -149,9 +149,13 @@ namespace cv2shell {
 namespace caffe2shell {
 	//* 模板函数一定要被人为实例化，否则编译器无法导出，函数无法被真正使用，参见：
 	//* https://blog.csdn.net/liyuanbhu/article/details/50363670
-	template <typename DType> caffe::Net<DType>* LoadNet(std::string strParamFile, std::string strModelFile, caffe::Phase phase);	
-	template MACHINEVISIONLIB_API caffe::Net<FLOAT>* caffe2shell::LoadNet(std::string strParamFile, std::string strModelFile, caffe::Phase phase);
-	template MACHINEVISIONLIB_API caffe::Net<DOUBLE>* caffe2shell::LoadNet(std::string strParamFile, std::string strModelFile, caffe::Phase phase);
+	template <typename DType> caffe::Net<DType> *LoadNet(std::string strParamFile, std::string strModelFile, caffe::Phase phase);	
+	template MACHINEVISIONLIB_API caffe::Net<FLOAT> *caffe2shell::LoadNet(std::string strParamFile, std::string strModelFile, caffe::Phase phase);
+	template MACHINEVISIONLIB_API caffe::Net<DOUBLE> *caffe2shell::LoadNet(std::string strParamFile, std::string strModelFile, caffe::Phase phase);
+
+	template <typename DType> void ExtractFeature(caffe::Net<DType> *pNet, caffe::MemoryDataLayer<DType> *pMemDataLayer, Mat& matImgROI, vector<DType>& vImgFeature, INT nFeatureDimension, const CHAR *pszLayerName);
+	template MACHINEVISIONLIB_API void ExtractFeature(caffe::Net<FLOAT> *pflNet, caffe::MemoryDataLayer<FLOAT> *pMemDataLayer, Mat& matImgROI, vector<FLOAT>& vImgFeature, INT nFeatureDimension, const CHAR *pszLayerName);
+	template MACHINEVISIONLIB_API void ExtractFeature(caffe::Net<DOUBLE> *pdblNet, caffe::MemoryDataLayer<DOUBLE> *pMemDataLayer, Mat& matImgROI, vector<DOUBLE>& vImgFeature, INT nFeatureDimension, const CHAR *pszBlobName);
 };
 
 class MACHINEVISIONLIB_API ImgMatcher {
