@@ -40,7 +40,8 @@ BOOL FaceDatabase::AddFace(const CHAR *pszImgName)
 }
 
 //FACE_PROCESSING_EXT Mat FaceProcessing(const Mat &img_, double gamma = 0.8, double sigma0 = 0, double sigma1 = 0, double mask = 0, double do_norm = 8);
-Mat FaceDatabase::FaceChipsHandle(Mat& matFaceChips, DOUBLE dblGamma, DOUBLE dblSigma0, DOUBLE dblSigma1, DOUBLE dblNorm)
+Mat FaceDatabase::FaceChipsHandle(Mat& matFaceChips, DOUBLE dblPowerValue, 
+									DOUBLE dblGamma, DOUBLE dblSigma0, DOUBLE dblSigma1, DOUBLE dblNorm)
 {
 	FLOAT *pflData;
 
@@ -70,9 +71,10 @@ Mat FaceDatabase::FaceChipsHandle(Mat& matFaceChips, DOUBLE dblGamma, DOUBLE dbl
 	             上方边界
 	左上角 =================== 右上角
 	       ||               ||
-	       ||    扩充前的   ||
-	       ||    图像区域   ||
-	       ||               ||
+	     左||    扩充前的   ||右
+	     边||    图像区域   ||边
+	     界||               ||界
+		   ||               ||
 	左下角 =================== 右下角
 	             下方边界
 	*/
@@ -93,37 +95,118 @@ Mat FaceDatabase::FaceChipsHandle(Mat& matFaceChips, DOUBLE dblGamma, DOUBLE dbl
 			//* 右上角，用原始图像右上角的数据填充
 			else if (i < nExtendedBoundaryLen && j >= matFloat.cols + nExtendedBoundaryLen)
 				pflData[j] = matFloat.ptr<FLOAT>(0)[matFloat.cols - 1];
-			//左下
-			else if (i >= im.rows + b&&i<rows + 2 * b&&j<b)
-				pData1[j] = im.ptr<float>(rows - 1)[0];
-			//右下
-			else if (i >= im.rows + b&&j >= im.cols + b)
-				pData1[j] = im.ptr<float>(im.rows - 1)[im.cols - 1];
-			//上方
-			else if (i<b&&j >= b&&j<im.cols + b)
-				pData1[j] = im.ptr<float>(0)[j - b];
-			//下方
-			else if (i >= im.rows + b&&j >= b&&j<im.cols + b)
-				pData1[j] = im.ptr<float>(im.rows - 1)[j - b];
-			//左方
-			else if (j<b&&i >= b&&i<im.rows + b)
-				pData1[j] = im.ptr<float>(i - b)[0];
-			//右方
-			else if (j >= im.cols + b&&i >= b&&i<im.rows + b)
-				pData1[j] = im.ptr<float>(i - b)[im.cols - 1];
+			//* 左下角，用原始图像左下角的数据填充
+			else if (i >= matFloat.rows + nExtendedBoundaryLen && j < nExtendedBoundaryLen)
+				pflData[j] = matFloat.ptr<FLOAT>(matFloat.rows - 1)[0];
+			//* 右下角，用原始图像右下角的数据填充
+			else if (i >= matFloat.rows + nExtendedBoundaryLen && j >= matFloat.cols + nExtendedBoundaryLen)
+				pflData[j] = matFloat.ptr<FLOAT>(matFloat.rows - 1)[matFloat.cols - 1];
+			//* 上扩充边界，用原始图像最顶端一行的数据填充
+			else if (i < nExtendedBoundaryLen && j >= nExtendedBoundaryLen && j < matFloat.cols + nExtendedBoundaryLen)
+				pflData[j] = matFloat.ptr<FLOAT>(0)[j - nExtendedBoundaryLen];
+			//* 下扩充边界,用原始图像最底端一行的数据填充
+			else if (i >= matFloat.rows + nExtendedBoundaryLen && j >= nExtendedBoundaryLen && j < matFloat.cols + nExtendedBoundaryLen)
+				pflData[j] = matFloat.ptr<FLOAT>(matFloat.rows - 1)[j - nExtendedBoundaryLen];
+			//* 左扩充边界，用原始图像最左边一行的数据填充
+			else if (j < nExtendedBoundaryLen && i >= nExtendedBoundaryLen && i < matFloat.rows + nExtendedBoundaryLen)
+				pflData[j] = matFloat.ptr<FLOAT>(i - nExtendedBoundaryLen)[0];
+			//* 右扩充边界，用原始图像最右边一行的数据填充
+			else if (j >= matFloat.cols + nExtendedBoundaryLen && i >= nExtendedBoundaryLen && i < matFloat.rows + nExtendedBoundaryLen)
+				pflData[j] = matFloat.ptr<FLOAT>(i - nExtendedBoundaryLen)[matFloat.cols - 1];
+			else;
 		}
 	}
 
 __lblDoNormalizes:
-	//* 如果
-	if (fabs(dblNorm) < 1e-6)
-		goto __lblEbd;
+	//* 如果为0.0则直接跳到最后一步
+	DOUBLE dblTrim = fabs(dblNorm);
+	if (dblTrim < 1e-6)
+		goto __lblEnd;
+	
+	//* matFloat矩阵指数运算并计算均指
+	DOUBLE dblMeanVal = 0.0;
+	matTransit = cv::abs(matFloat);
+	for (INT i = 0; i<matFloat.rows; i++)
+	{
+		pflData = matTransit.ptr<FLOAT>(i);
+		for (INT j = 0; j < matFloat.cols; j++)
+		{
+			pflData[j] = pow(matTransit.ptr<FLOAT>(i)[j], dblPowerValue);
+			dblMeanVal += pflData[j];
+		}
+	}
+	dblMeanVal /= (matFloat.rows * matFloat.cols);
 
-__lblEbd:
+	//* 求得的均值指数运算后与矩阵相除
+	DOUBLE dblDivisor = cv::pow(dblMeanVal, 1/ dblPowerValue);
+	for (INT i = 0; i < matFloat.rows; i++)
+	{
+		pflData = matFloat.ptr<FLOAT>(i);
+		for (INT j = 0; j<matFloat.cols; j++)
+			pflData[j] /= dblDivisor;
+	}
+
+	//* 减去超标的数值，然后再一次求均值
+	dblMeanVal = 0.0;
+	matTransit = cv::abs(matFloat);
+	for (INT i = 0; i<matFloat.rows; i++)
+	{
+		pflData = matTransit.ptr<FLOAT>(i);
+		for (INT j = 0; j < matFloat.cols; j++)
+		{
+			if (pflData[j] > dblTrim)
+				pflData[j] = dblTrim;
+
+			pflData[j] = pow(pflData[j], dblPowerValue);
+			dblMeanVal += pflData[j];
+		}
+	}
+	dblMeanVal /= (matFloat.rows * matFloat.cols);
+
+	//* 再一次将均值进行指数计算后与矩阵相除
+	dblDivisor = cv::pow(dblMeanVal, 1 / dblPowerValue);
+	for (INT i = 0; i < matFloat.rows; i++)
+	{
+		pflData = matFloat.ptr<FLOAT>(i);
+		for (INT j = 0; j<matFloat.cols; j++)
+			pflData[j] /= dblDivisor;
+	}
+
+	//* 如果大于0.0
+	if(dblNorm > 1e-6)
+	{ 
+		for (INT i = 0; i<matFloat.rows; i++)
+		{
+			pflData = matFloat.ptr<FLOAT>(i);
+			for (INT j = 0; j<matFloat.cols; j++)
+				pflData[j] = dblTrim * tanh(pflData[j] / dblTrim);
+		}
+	}
+
+__lblEnd:
+	//* 找出矩阵的最小值
+	FLOAT flMin = matFloat.ptr<FLOAT>(0)[0];
 	for (INT i = 0; i <matFloat.rows; i++)
 	{
-
+		pflData = matFloat.ptr<FLOAT>(i);
+		for (INT j = 0; j < matFloat.cols; j++)
+		{
+			if (pflData[j] < flMin)
+				flMin = pflData[j];
+		}
 	}
+
+	//* 矩阵加最小值
+	for (INT i = 0; i <matFloat.rows; i++)
+	{
+		pflData = matFloat.ptr<FLOAT>(i);
+		for (INT j = 0; j < matFloat.cols; j++)	
+				pflData[j] += flMin;
+	}
+
+	//* 归一化
+	normalize(matFloat, matFloat, 0, 255, NORM_MINMAX);
+	matFloat.convertTo(matFloat, CV_8UC1);
 
 	return matFloat;
 }
