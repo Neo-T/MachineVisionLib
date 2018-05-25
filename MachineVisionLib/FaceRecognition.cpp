@@ -7,6 +7,8 @@
 #include <string.h>
 #include <tchar.h>
 #include <vector>
+#include <dlib/image_processing.h>
+#include <dlib/opencv.h>
 #include <facedetect-dll.h>
 #include "common_lib.h"
 #include "MachineVisionLib.h"
@@ -23,6 +25,79 @@ BOOL FaceDatabase::LoadCaffeVGGNet(string strCaffePrototxtFile, string strCaffeM
 	}
 	else
 		return FALSE;
+}
+
+Mat FaceDatabase::ExtractFaceChips(Mat matImg, FLOAT flScale, INT nMinNeighbors, INT nMinPossibleFaceSize)
+{
+	Mat matDummy;
+
+	INT *pnFaces = NULL;
+	UCHAR *pubResultBuf = (UCHAR*)malloc(LIBFACEDETECT_BUFFER_SIZE);
+	if (!pubResultBuf)
+	{
+		cout << "error para in " << __FUNCTION__ << "(), in file " << __FILE__ << ", line " << __LINE__ - 3 << ", malloc error code:" << GetLastError() << endl;
+		return matDummy;
+	}
+
+	Mat matGray;
+	cvtColor(matImg, matGray, CV_BGR2GRAY);
+
+	//* 带特征点检测，这个函数要比DLib的特征点检测函数稍微快一些
+	INT nLandmark = 1;
+	pnFaces = facedetect_multiview_reinforce(pubResultBuf, (UCHAR*)(matGray.ptr(0)), matGray.cols, matGray.rows, (INT)matGray.step,
+		flScale, nMinNeighbors, nMinPossibleFaceSize, 0, nLandmark);
+	if (!pnFaces)
+	{
+		cout << "Error: No face was detected." << endl;
+		return matDummy;
+	}
+
+	//* 单张图片只允许存在一个人脸
+	if (*pnFaces != 1)
+	{
+		cout << "Error: Multiple faces were detected, and only one face was allowed." << endl;
+		return matDummy;
+	}
+
+	//* 获取68个脸部特征点，脸部到鼻子:0-35, 眼睛:36-47,嘴形：48-60，嘴线：61-67
+	SHORT *psScalar = ((SHORT*)(pnFaces + 1));
+	vector<dlib::point> vFaceFeature;
+	for (INT j = 0; j < 68; j++)
+		vFaceFeature.push_back(dlib::point((INT)psScalar[6 + 2 * j], (INT)psScalar[6 + 2 * j + 1]));
+
+	//* 为了速度，牺牲了部分可读性：
+	//* psScalar的0、1、2、3分别代表坐标x、y、width、height，如此：
+	//* rect()的四个参数分别是左上角坐标和右下角坐标
+	dlib::rectangle rect(psScalar[0], psScalar[1], psScalar[0] + psScalar[2] - 1, psScalar[1] + psScalar[3] - 1);
+
+	//* 将68个特征点转为dlib数据
+	dlib::full_object_detection shape(rect, vFaceFeature);
+	vector<dlib::full_object_detection> shapes;
+	shapes.push_back(shape);
+
+	dlib::array<dlib::array2d<dlib::rgb_pixel>> FaceChips;
+	extract_image_chips(dlib::cv_image<uchar>(matGray), get_face_chip_details(shapes), FaceChips);
+	Mat matFace = dlib::toMat(FaceChips[0]);
+
+	//* 按照网络要求调整为224,224大小
+	resize(matFace, matFace, Size(224, 224));
+
+	free(pubResultBuf);
+
+	return matFace;
+}
+
+Mat FaceDatabase::ExtractFaceChips(const CHAR *pszImgName, FLOAT flScale, INT nMinNeighbors, INT nMinPossibleFaceSize)
+{
+	Mat matImg = imread(pszImgName);
+	if (matImg.empty())
+	{
+		cout << "ExtractFaceChips() error：unable to read the picture, please confirm that the picture『" << pszImgName << "』 exists and the format is corrrect." << endl;
+
+		return matImg;
+	}
+
+	return ExtractFaceChips(matImg, flScale, nMinNeighbors, nMinPossibleFaceSize);
 }
 
 //FACE_PROCESSING_EXT Mat FaceProcessing(const Mat &img_, double gamma = 0.8, double sigma0 = 0, double sigma1 = 0, double mask = 0, double do_norm = 8);
@@ -138,9 +213,42 @@ __lblEnd:
 	return matFloat;
 }
 
-BOOL FaceDatabase::AddFace(Mat& matImg)
+//* 看看该人是否已经添加到数据库中，避免重复添加
+BOOL FaceDatabase::IsPersonAdded(const string& strPersonName)
 {
-	Mat matFaceChips = cv2shell::ExtractFaceChips(matImg);
+	HANDLE hDir = CLIBOpenDirectory(FACE_DB_PATH);
+	if (hDir == INVALID_HANDLE_VALUE)
+	{
+		cout << "Unabled to open the folder " << FACE_DB_PATH << ", the process exit." << endl;
+		exit(-1);
+	}
+
+	UINT unNameLen;
+	string strFileName, strPersonFileName = strPersonName + ".xml";
+	while ((unNameLen = CLIBReadDir(hDir, strFileName)) > 0)
+	{		
+		if (strFileName == strPersonFileName)
+		{
+			CLIBCloseDirectory(hDir);
+			return TRUE;
+		}
+	}
+
+	CLIBCloseDirectory(hDir);
+
+	return FALSE;
+}
+
+BOOL FaceDatabase::AddFace(Mat& matImg, const string& strPersonName)
+{
+	if (IsPersonAdded(strPersonName))
+	{
+		cout << strPersonName  << " has been added to the face database." << endl;
+		return TRUE;
+	}
+
+	//* 从图片中提取脸部区域
+	Mat matFaceChips = ExtractFaceChips(matImg);
 	if (matFaceChips.empty())
 	{
 		cout << "No face was detected." << endl;
@@ -148,19 +256,25 @@ BOOL FaceDatabase::AddFace(Mat& matImg)
 	}
 
 	imshow("pic", matFaceChips);
-	waitKey(0);
+	cv::waitKey(0);
 
-	//* ROI(region of interest)
+	//* ROI(region of interest)，按照一定算法将脸部区域转换为caffe网络特征提取需要的输入数据
 	Mat matFaceROI = FaceChipsHandle(matFaceChips);
 
-	vector<FLOAT> vImgFeature;
-	caffe2shell::ExtractFeature(pcaflNet, pflMemDataLayer, matFaceROI, vImgFeature, FACE_FEATURE_DIMENSION, FACE_FEATURE_LAYER_NAME);
-
+	//* 通过caffe网络提取图像特征
+	Mat matImgFeature(1, FACE_FEATURE_DIMENSION, CV_32F);
+	caffe2shell::ExtractFeature(pcaflNet, pflMemDataLayer, matFaceROI, matImgFeature, FACE_FEATURE_DIMENSION, FACE_FEATURE_LAYER_NAME);
+	
+	//* 将特征数据存入文件
+	string strXMLFile = string(FACE_DB_PATH) + "/" + strPersonName + ".xml";
+	FileStorage fs(strXMLFile, FileStorage::WRITE);
+	fs << "VGG-FACEFEATURE" << matImgFeature;
+	fs.release();
 
 	return TRUE;
 }
 
-BOOL FaceDatabase::AddFace(const CHAR *pszImgName)
+BOOL FaceDatabase::AddFace(const CHAR *pszImgName, const string& strPersonName)
 {
 	Mat matImg = imread(pszImgName);
 	if (matImg.empty())
@@ -170,6 +284,6 @@ BOOL FaceDatabase::AddFace(const CHAR *pszImgName)
 		return FALSE;
 	}
 
-	return AddFace(matImg);
+	return AddFace(matImg, strPersonName);
 }
 

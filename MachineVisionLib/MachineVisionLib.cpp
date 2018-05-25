@@ -8,15 +8,6 @@
 #include <tchar.h>
 #include <io.h>
 #include <vector>
-
-#include <dlib/image_processing/frontal_face_detector.h>
-#include <dlib/image_processing/render_face_detections.h>
-#include <dlib/image_processing.h>
-#include <dlib/gui_widgets.h>
-#include <dlib/image_io.h>
-#include <dlib/opencv/cv_image.h>
-#include <dlib/opencv.h>
-
 #include <facedetect-dll.h>
 #include "common_lib.h"
 #include "MachineVisionLib.h"
@@ -880,79 +871,6 @@ MACHINEVISIONLIB_API void cv2shell::MarkFaceWithRectangle(Mat &matImg, vector<Fa
 	imshow("Face Detect Result", matImg);
 }
 
-MACHINEVISIONLIB_API Mat cv2shell::ExtractFaceChips(Mat matImg, FLOAT flScale, INT nMinNeighbors, INT nMinPossibleFaceSize)
-{
-	Mat matDummy;
-
-	INT *pnFaces = NULL;
-	UCHAR *pubResultBuf = (UCHAR*)malloc(LIBFACEDETECT_BUFFER_SIZE);
-	if (!pubResultBuf)
-	{
-		cout << "error para in " << __FUNCTION__ << "(), in file " << __FILE__ << ", line " << __LINE__ - 3 << ", malloc error code:" << GetLastError() << endl;		
-		return matDummy;
-	}
-
-	Mat matGray;
-	cvtColor(matImg, matGray, CV_BGR2GRAY);
-
-	//* 带特征点检测，这个函数要比DLib的特征点检测函数稍微快一些
-	INT nLandmark = 1;
-	pnFaces = facedetect_multiview_reinforce(pubResultBuf, (UCHAR*)(matGray.ptr(0)), matGray.cols, matGray.rows, (INT)matGray.step,
-												flScale, nMinNeighbors, nMinPossibleFaceSize, 0, nLandmark);	
-	if (!pnFaces)
-	{ 
-		cout << "Error: No face was detected." << endl;
-		return matDummy;
-	}
-
-	//* 单张图片只允许存在一个人脸
-	if (*pnFaces != 1)
-	{
-		cout << "Error: Multiple faces were detected, and only one face was allowed." << endl;
-		return matDummy;
-	}
-
-	//* 获取68个脸部特征点，脸部到鼻子:0-35, 眼睛:36-47,嘴形：48-60，嘴线：61-67
-	SHORT *psScalar = ((SHORT*)(pnFaces + 1));
-	vector<dlib::point> vFaceFeature;
-	for (INT j = 0; j < 68; j++)
-		vFaceFeature.push_back(dlib::point((INT)psScalar[6 + 2 * j], (INT)psScalar[6 + 2 * j + 1]));
-
-	//* 为了速度，牺牲了部分可读性：
-	//* psScalar的0、1、2、3分别代表坐标x、y、width、height，如此：
-	//* rect()的四个参数分别是左上角坐标和右下角坐标
-	dlib::rectangle rect(psScalar[0], psScalar[1], psScalar[0] + psScalar[2] - 1, psScalar[1] + psScalar[3] - 1);
-
-	//* 将68个特征点转为dlib数据
-	dlib::full_object_detection shape(rect, vFaceFeature);
-	vector<dlib::full_object_detection> shapes;
-	shapes.push_back(shape);
-
-	dlib::array<dlib::array2d<dlib::rgb_pixel>> FaceChips;
-	extract_image_chips(dlib::cv_image<uchar>(matGray), get_face_chip_details(shapes), FaceChips);
-	Mat matFace = dlib::toMat(FaceChips[0]);
-
-	//* 按照网络要求调整为224,224大小
-	resize(matFace, matFace, Size(224, 224));
-
-	free(pubResultBuf);
-
-	return matFace;
-}
-
-MACHINEVISIONLIB_API Mat cv2shell::ExtractFaceChips(const CHAR *pszImgName, FLOAT flScale, INT nMinNeighbors, INT nMinPossibleFaceSize)
-{
-	Mat matImg = imread(pszImgName);
-	if (matImg.empty())
-	{
-		cout << "ExtractFaceChips() error：unable to read the picture, please confirm that the picture『" << pszImgName << "』 exists and the format is corrrect." << endl;
-
-		return matImg;
-	}
-
-	return ExtractFaceChips(matImg, flScale, nMinNeighbors, nMinPossibleFaceSize);
-}
-
 //* 初始化轻型分类器，其实就是把DNN网络配置文件和训练好的模型加载到内存并据此建立DNN网络
 MACHINEVISIONLIB_API Net cv2shell::InitLightClassifier(vector<string> &vClassNames)
 {
@@ -1232,11 +1150,45 @@ void caffe2shell::ExtractFeature(caffe::Net<DType> *pNet, caffe::MemoryDataLayer
 	const DType *pFeatureData = blobImgFeature->gpu_data();
 #else
 	//* 使用GPU时也可以使用cpu_data()，因为调用cpu_data()时，caffe会自动同步GPU->CPU，但这样就需要耗费一些同步时间，所以只有单纯CPU时才调用cpu_data()
-	const DType *pFeatureData = blobImgFeature->gpu_data();
+	const DType *pFeatureData = blobImgFeature->cpu_data();
 
 #endif
 
 	//* 将特征数据存入出口参数，供上层调用函数使用
 	for (INT i = 0; i < nFeatureDimension; i++)
 		vImgFeature.push_back(pFeatureData[i]);
+}
+
+//* 提取图像特征
+template <typename DType>
+void caffe2shell::ExtractFeature(caffe::Net<DType> *pNet, caffe::MemoryDataLayer<DType> *pMemDataLayer,
+									Mat& matImgROI, Mat& matImgFeature, INT nFeatureDimension, const CHAR *pszBlobName)
+{
+	//* 将数据和标签放入网络
+	vector<Mat> vmatImgROI;
+	vector<INT> vnLabel;
+	vmatImgROI.push_back(matImgROI);
+	vnLabel.push_back(0);
+	pMemDataLayer->AddMatVector(vmatImgROI, vnLabel);
+
+	//* 前向传播，获取特征数据
+	pNet->Forward();
+
+	//* 关于Blob讲得最详细的Blog地址如下：
+	//* https://blog.csdn.net/junmuzi/article/details/52761379
+	//* 关于boost共享指针最详细的地址如下：
+	//* https://www.cnblogs.com/helloamigo/p/3575098.html
+	boost::shared_ptr<caffe::Blob<DType>> blobImgFeature = pNet->blob_by_name(pszBlobName);
+#if NEED_GPU
+	//* 使用GPU时直接从GPU读取数据可以跳过GPU->CPU的同步操作，这样能快一点
+	const DType *pFeatureData = blobImgFeature->gpu_data();
+#else
+	//* 使用GPU时也可以使用cpu_data()，因为调用cpu_data()时，caffe会自动同步GPU->CPU，但这样就需要耗费一些同步时间，所以只有单纯CPU时才调用cpu_data()
+	const DType *pFeatureData = blobImgFeature->cpu_data();
+
+#endif
+
+	//* 将特征数据存入出口参数，供上层调用函数使用
+	for (INT i = 0; i < nFeatureDimension; i++)	
+		matImgFeature.at<DType>(0, i) = pFeatureData[i];	
 }
