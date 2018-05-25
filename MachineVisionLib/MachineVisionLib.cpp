@@ -932,9 +932,7 @@ MACHINEVISIONLIB_API Mat cv2shell::ExtractFaceChips(Mat matImg, FLOAT flScale, I
 	extract_image_chips(dlib::cv_image<uchar>(matGray), get_face_chip_details(shapes), FaceChips);
 	Mat matFace = dlib::toMat(FaceChips[0]);
 
-	//* 再转换一次，toMat后不是CV_BGR2GRAY格式
-	//* 后来实验证明这个不需要了，故注释掉
-	//cvtColor(matFace, matFace, CV_BGR2GRAY);
+	//* 按照网络要求调整为224,224大小
 	resize(matFace, matFace, Size(224, 224));
 
 	free(pubResultBuf);
@@ -1221,6 +1219,24 @@ void caffe2shell::ExtractFeature(caffe::Net<DType> *pNet, caffe::MemoryDataLayer
 	vnLabel.push_back(0);
 	pMemDataLayer->AddMatVector(vmatImgROI, vnLabel);
 
+	//* 前向传播，获取特征数据
 	pNet->Forward();
-	boost::shared_ptr<caffe::Blob<DType>> blob = pNet->blob_by_name(pszBlobName);
+
+	//* 关于Blob讲得最详细的Blog地址如下：
+	//* https://blog.csdn.net/junmuzi/article/details/52761379
+	//* 关于boost共享指针最详细的地址如下：
+	//* https://www.cnblogs.com/helloamigo/p/3575098.html
+	boost::shared_ptr<caffe::Blob<DType>> blobImgFeature = pNet->blob_by_name(pszBlobName);
+#if NEED_GPU
+	//* 使用GPU时直接从GPU读取数据可以跳过GPU->CPU的同步操作，这样能快一点
+	const DType *pFeatureData = blobImgFeature->gpu_data();
+#else
+	//* 使用GPU时也可以使用cpu_data()，因为调用cpu_data()时，caffe会自动同步GPU->CPU，但这样就需要耗费一些同步时间，所以只有单纯CPU时才调用cpu_data()
+	const DType *pFeatureData = blobImgFeature->gpu_data();
+
+#endif
+
+	//* 将特征数据存入出口参数，供上层调用函数使用
+	for (INT i = 0; i < nFeatureDimension; i++)
+		vImgFeature.push_back(pFeatureData[i]);
 }

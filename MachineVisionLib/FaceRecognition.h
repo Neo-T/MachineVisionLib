@@ -20,6 +20,9 @@ namespace caffe
 	extern INSTANTIATE_CLASS(MemoryDataLayer);
 }
 
+#define FACE_FEATURE_DIMENSION	2622		//* 要提取的特征维数
+#define FACE_FEATURE_LAYER_NAME	"fc8"		//* 特征层的名称
+
 class FACERECOGNITION_API FaceDatabase {
 public:
 	FaceDatabase() {
@@ -34,9 +37,10 @@ public:
 	BOOL LoadCaffeVGGNet(string strCaffePrototxtFile, string strCaffeModelFile);
 
 	BOOL AddFace(const CHAR *pszImgName);
-	BOOL AddFace(Mat& matFace);
+	BOOL AddFace(Mat& matImg);
 
-	caffe::Net<FLOAT> *caflNet;
+	caffe::Net<FLOAT> *pcaflNet;
+	caffe::MemoryDataLayer<FLOAT> *pflMemDataLayer;
 
 private:
 	Mat FaceChipsHandle(Mat& matFaceChips, DOUBLE dblPowerValue = 0.1, DOUBLE dblGamma = 0.2, DOUBLE dblNorm = 10);	

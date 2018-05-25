@@ -14,10 +14,13 @@
 
 BOOL FaceDatabase::LoadCaffeVGGNet(string strCaffePrototxtFile, string strCaffeModelFile)
 {
-	caflNet = caffe2shell::LoadNet<FLOAT>(strCaffePrototxtFile, strCaffeModelFile, caffe::TEST);
+	pcaflNet = caffe2shell::LoadNet<FLOAT>(strCaffePrototxtFile, strCaffeModelFile, caffe::TEST);
 
-	if (caflNet)
+	if (pcaflNet)
+	{
+		pflMemDataLayer = (caffe::MemoryDataLayer<FLOAT> *)pcaflNet->layers()[0].get();
 		return TRUE;
+	}
 	else
 		return FALSE;
 }
@@ -135,14 +138,9 @@ __lblEnd:
 	return matFloat;
 }
 
-BOOL FaceDatabase::AddFace(Mat& matFace)
+BOOL FaceDatabase::AddFace(Mat& matImg)
 {
-	return FALSE;
-}
-
-BOOL FaceDatabase::AddFace(const CHAR *pszImgName)
-{
-	Mat matFaceChips = cv2shell::ExtractFaceChips(pszImgName);
+	Mat matFaceChips = cv2shell::ExtractFaceChips(matImg);
 	if (matFaceChips.empty())
 	{
 		cout << "No face was detected." << endl;
@@ -155,6 +153,23 @@ BOOL FaceDatabase::AddFace(const CHAR *pszImgName)
 	//* ROI(region of interest)
 	Mat matFaceROI = FaceChipsHandle(matFaceChips);
 
-	return AddFace(matFaceChips);
+	vector<FLOAT> vImgFeature;
+	caffe2shell::ExtractFeature(pcaflNet, pflMemDataLayer, matFaceROI, vImgFeature, FACE_FEATURE_DIMENSION, FACE_FEATURE_LAYER_NAME);
+
+
+	return TRUE;
+}
+
+BOOL FaceDatabase::AddFace(const CHAR *pszImgName)
+{
+	Mat matImg = imread(pszImgName);
+	if (matImg.empty())
+	{
+		cout << "AddFace() error£ºunable to read the picture, please confirm that the picture¡º" << pszImgName << "¡» exists and the format is corrrect." << endl;
+
+		return FALSE;
+	}
+
+	return AddFace(matImg);
 }
 
