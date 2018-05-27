@@ -261,9 +261,13 @@ BOOL FaceDatabase::AddFace(Mat& matImg, const string& strPersonName)
 	//* ROI(region of interest)，按照一定算法将脸部区域转换为caffe网络特征提取需要的输入数据
 	Mat matFaceROI = FaceChipsHandle(matFaceChips);
 
+	cout << "1<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
+
 	//* 通过caffe网络提取图像特征
 	Mat matImgFeature(1, FACE_FEATURE_DIMENSION, CV_32F);
 	caffe2shell::ExtractFeature(pcaflNet, pflMemDataLayer, matFaceROI, matImgFeature, FACE_FEATURE_DIMENSION, FACE_FEATURE_LAYER_NAME);
+
+	cout << "2<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
 	
 	//* 将特征数据存入文件
 	string strXMLFile = string(FACE_DB_PATH) + "/" + strPersonName + ".xml";
