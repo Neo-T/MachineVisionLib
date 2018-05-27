@@ -1,0 +1,5 @@
+修改MachineVisionLib工程配置中预处理器输入的CPU_ONLY，加入这个，则caffe也是CPU_ONLY编译的，这样即可，同时，MachineVisionLib.h中NEED_GPU改为0，这样编译通过；
+GPU则正好反过来，CPU_ONLY去掉，NEED_GPU置为1即可。
+另外，debug不考虑了
+
+boost_thread-vc140-mt-1_61.lib一定加入

@@ -34,7 +34,7 @@
 #include <caffe/layers/softmax_layer.hpp>
 #endif
 
-#define NEED_GPU	0
+#define NEED_GPU	1
 
 using namespace cv;
 using namespace common_lib;

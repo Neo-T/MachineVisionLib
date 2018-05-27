@@ -24,12 +24,6 @@ namespace caffe
 #define FACE_FEATURE_LAYER_NAME	"fc8"		//* 特征层的名称
 #define FACE_DB_PATH			"./PERSONS"	//* 数据库保存路径
 
-//* 人脸类
-class FACERECOGNITION_API Face {
-	string strPersonName;
-	vector<Mat> vmFeature;
-};
-
 //* 人脸数据库类
 class FACERECOGNITION_API FaceDatabase {
 public:
@@ -41,9 +35,7 @@ public:
 #endif
 		unFaceNum = 0;
 	}
-	~FaceDatabase() {
-		if (pFaces)
-			delete pFaces;
+	~FaceDatabase() {		
 	}
 
 	BOOL LoadCaffeVGGNet(string strCaffePrototxtFile, string strCaffeModelFile);
@@ -61,6 +53,5 @@ private:
 	Mat FaceChipsHandle(Mat& matFaceChips, DOUBLE dblPowerValue = 0.1, DOUBLE dblGamma = 0.2, DOUBLE dblNorm = 10);	
 	BOOL IsPersonAdded(const string& strPersonName);
 
-	UINT unFaceNum;
-	Face *pFaces;
+	UINT unFaceNum;	
 };

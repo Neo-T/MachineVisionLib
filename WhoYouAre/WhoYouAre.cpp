@@ -12,6 +12,14 @@
 #include "MachineVisionLib.h"
 #include "FaceRecognition.h"
 
+#if NEED_GPU
+#pragma comment(lib,"cublas.lib")
+#pragma comment(lib,"cuda.lib")
+#pragma comment(lib,"cudart.lib")
+#pragma comment(lib,"curand.lib")
+#pragma comment(lib,"cudnn.lib")
+#endif
+
 #define NEED_DEBUG_CONSOLE	1	//* 是否需要控制台窗口输出
 
 #if !NEED_DEBUG_CONSOLE
