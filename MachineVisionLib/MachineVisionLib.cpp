@@ -1171,24 +1171,17 @@ void caffe2shell::ExtractFeature(caffe::Net<DType> *pNet, caffe::MemoryDataLayer
 	vnLabel.push_back(0);
 	pMemDataLayer->AddMatVector(vmatImgROI, vnLabel);
 
-	cout << "1.1<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
 	//* 前向传播，获取特征数据
 	pNet->Forward();
-	cout << "1.2<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
 
 	//* 关于Blob讲得最详细的Blog地址如下：
 	//* https://blog.csdn.net/junmuzi/article/details/52761379
 	//* 关于boost共享指针最详细的地址如下：
 	//* https://www.cnblogs.com/helloamigo/p/3575098.html
 	boost::shared_ptr<caffe::Blob<DType>> blobImgFeature = pNet->blob_by_name(pszBlobName);
-#if !NEED_GPU
-	//* 使用GPU时直接从GPU读取数据可以跳过GPU->CPU的同步操作，这样能快一点
-	const DType *pFeatureData = blobImgFeature->gpu_data();
-#else
-	//* 使用GPU时也可以使用cpu_data()，因为调用cpu_data()时，caffe会自动同步GPU->CPU，但这样就需要耗费一些同步时间，所以只有单纯CPU时才调用cpu_data()
-	const DType *pFeatureData = blobImgFeature->cpu_data();
 
-#endif
+	//* 一旦调用cpu_data()，caffe会自动同步GPU->CPU（当然没有使用GPU，那么数据一直在CPU这边，caffe就不会自动同步了）
+	const DType *pFeatureData = blobImgFeature->cpu_data();
 
 	//* 将特征数据存入出口参数，供上层调用函数使用
 	for (INT i = 0; i < nFeatureDimension; i++)	

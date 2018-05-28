@@ -219,7 +219,7 @@ BOOL FaceDatabase::IsPersonAdded(const string& strPersonName)
 	HANDLE hDir = CLIBOpenDirectory(FACE_DB_PATH);
 	if (hDir == INVALID_HANDLE_VALUE)
 	{
-		cout << "Unabled to open the folder " << FACE_DB_PATH << ", the process exit." << endl;
+		cout << "Unabled to open the folder " << FACE_DB_PATH << ", the process will be exit." << endl;
 		exit(-1);
 	}
 
@@ -237,6 +237,45 @@ BOOL FaceDatabase::IsPersonAdded(const string& strPersonName)
 	CLIBCloseDirectory(hDir);
 
 	return FALSE;
+}
+
+//* 更新人脸库统计文件
+void FaceDatabase::UpdateFaceDBStatisticFile(const string& strPersonName)
+{
+	ST_FACE_DB_STATIS_INFO stInfo;
+
+	//* 先读出
+	GetFaceDBStatisInfo(&stInfo);
+
+	//* 更新数值，其中stInfo.dwTotalLenOfPersonName预留出"\x00"来，以方便读取
+	stInfo.nPersonNum += 1;
+	stInfo.nTotalLenOfPersonName += strPersonName.size() + 1;
+
+	//* 写入
+	FileStorage fs(FACE_DB_STATIS_FILE, FileStorage::WRITE);
+	fs << FDBSTATIS_LABEL_PERSON_NUM << stInfo.nPersonNum;
+	fs << FDBSTATIS_LABEL_PERSONNAME_TOTAL_LEN << stInfo.nTotalLenOfPersonName;
+
+	fs.release();
+}
+
+void FaceDatabase::GetFaceDBStatisInfo(PST_FACE_DB_STATIS_INFO pstInfo)
+{
+	FileStorage fs;
+	if (fs.open(FACE_DB_STATIS_FILE, FileStorage::READ))
+	{
+		fs[FDBSTATIS_LABEL_PERSON_NUM] >> pstInfo->nPersonNum;
+		fs[FDBSTATIS_LABEL_PERSONNAME_TOTAL_LEN] >> pstInfo->nTotalLenOfPersonName;
+
+		fs.release();
+	}
+	else
+	{		
+		cout << "The statistic file 『" << FACE_DB_STATIS_FILE << "』 of the face database does not exist, and has not added face data yet?" << endl;
+
+		pstInfo->nPersonNum = 0;
+		pstInfo->nTotalLenOfPersonName = 0;
+	}
 }
 
 BOOL FaceDatabase::AddFace(Mat& matImg, const string& strPersonName)
@@ -261,19 +300,19 @@ BOOL FaceDatabase::AddFace(Mat& matImg, const string& strPersonName)
 	//* ROI(region of interest)，按照一定算法将脸部区域转换为caffe网络特征提取需要的输入数据
 	Mat matFaceROI = FaceChipsHandle(matFaceChips);
 
-	cout << "1<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
-
 	//* 通过caffe网络提取图像特征
 	Mat matImgFeature(1, FACE_FEATURE_DIMENSION, CV_32F);
 	caffe2shell::ExtractFeature(pcaflNet, pflMemDataLayer, matFaceROI, matImgFeature, FACE_FEATURE_DIMENSION, FACE_FEATURE_LAYER_NAME);
-
-	cout << "2<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
 	
 	//* 将特征数据存入文件
 	string strXMLFile = string(FACE_DB_PATH) + "/" + strPersonName + ".xml";
 	FileStorage fs(strXMLFile, FileStorage::WRITE);
 	fs << "VGG-FACEFEATURE" << matImgFeature;
 	fs.release();
+
+	//* 保存人数和人名字节数，用于人脸数据库加载
+	UpdateFaceDBStatisticFile(strPersonName);
+
 
 	return TRUE;
 }
@@ -289,5 +328,63 @@ BOOL FaceDatabase::AddFace(const CHAR *pszImgName, const string& strPersonName)
 	}
 
 	return AddFace(matImg, strPersonName);
+}
+
+void FaceDatabase::PutFaceDataToMemFile(void)
+{
+	HANDLE hDir = CLIBOpenDirectory(FACE_DB_PATH);
+	if (hDir == INVALID_HANDLE_VALUE)
+	{
+		cout << "Unabled to open the folder " << FACE_DB_PATH << ", the process will be exit." << endl;
+		exit(-1);
+	}
+
+	UINT unNameLen, unWriteBytes;
+	string strFileName;
+	unWriteBytes = 0;
+	while ((unNameLen = CLIBReadDir(hDir, strFileName)) > 0)
+	{
+		size_t sztEndPos = strFileName.rfind(".xml");
+		
+		string strPersonName = strFileName.substr(0, sztEndPos);
+		sprintf(((CHAR*)stMemFilePersonName.pvMem) + unWriteBytes, "%s", strPersonName.c_str());
+		unWriteBytes += strPersonName.size() + 1;		
+	}
+
+	CLIBCloseDirectory(hDir);
+}
+
+//* 从数据库中加载人脸数据到内存，参数pstFaceData接收人脸数据在内存中的保存地址
+BOOL FaceDatabase::LoadFaceData(void)
+{
+	ST_FACE_DB_STATIS_INFO stInfo;
+
+	//* 读出统计信息
+	GetFaceDBStatisInfo(&stInfo);
+	if (!stInfo.nPersonNum)
+	{
+		cout << "No face data has been added, the process will be exit." << endl;
+		exit(-1);
+	}
+
+	//* 为人脸数据建立内存文件
+	if(!common_lib::CreateMemFile(&stMemFileFaceData, stInfo.nPersonNum * FACE_FEATURE_DIMENSION * sizeof(FLOAT)))
+	{ 
+		return FALSE;
+	}
+
+	//* 为人名建立内存文件
+	if (!common_lib::CreateMemFile(&stMemFilePersonName, stInfo.nTotalLenOfPersonName))
+	{
+		common_lib::DeletMemFile(&stMemFileFaceData);
+
+		return FALSE;
+	}
+	memset((CHAR*)stMemFilePersonName.pvMem, 0, stInfo.nTotalLenOfPersonName);
+
+	//* 加载数据	
+	PutFaceDataToMemFile();
+	
+	return TRUE;
 }
 

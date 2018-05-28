@@ -17,6 +17,12 @@
 
 using namespace std;
 
+//* 内存文件
+typedef struct _ST_MEM_FILE_ {	
+	HANDLE hMem;
+	void *pvMem;
+} ST_MEM_FILE, *PST_MEM_FILE;
+
 //* 公共函数库
 namespace common_lib {
 	COMMON_LIB_API HANDLE CLIBOpenDirectory(const CHAR *pszDirectName);
@@ -30,6 +36,9 @@ namespace common_lib {
 	COMMON_LIB_API void IPCCloseSHM(CHAR *pszSHM);
 	COMMON_LIB_API void IPCCloseSHM(CHAR *pszSHM, HANDLE hSHM);
 	COMMON_LIB_API void IPCDelSHM(HANDLE hSHM);
+
+	COMMON_LIB_API BOOL CreateMemFile(PST_MEM_FILE pstMemFile, DWORD dwFileSize);
+	COMMON_LIB_API void DeletMemFile(PST_MEM_FILE pstMemFile);
 
 	COMMON_LIB_API UINT IsProcExist(CHAR *pszProcName, INT nProcNameLen);
 	COMMON_LIB_API BOOL IsProcExist(CHAR *pszProcName, ...);		

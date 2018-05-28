@@ -175,6 +175,46 @@ COMMON_LIB_API void common_lib::IPCDelSHM(HANDLE hSHM)
 	CloseHandle(hSHM);
 }
 
+//* 建立内存文件
+COMMON_LIB_API BOOL common_lib::CreateMemFile(PST_MEM_FILE pstMemFile, DWORD dwFileSize)
+{
+	HANDLE hMem = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, dwFileSize, NULL);
+	if (hMem == NULL)
+	{
+		cout << "error para in " << __FUNCTION__ << "(), in file " << __FILE__ << ", line " << __LINE__ - 3 << ", error code:" << GetLastError() << endl;
+		return FALSE;
+	}
+
+	//* 完成实际的映射并获取首地址
+	void *pvMem = MapViewOfFile(hMem, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+	if (pvMem == NULL)
+	{
+		cout << "error para in " << __FUNCTION__ << "(), in file " << __FILE__ << ", line " << __LINE__ - 3 << ", error code:" << GetLastError() << endl;
+
+		CloseHandle(hMem);		
+
+		return FALSE;
+	}
+
+	pstMemFile->hMem = hMem;
+	pstMemFile->pvMem = pvMem;
+
+	return TRUE;
+}
+
+//* 删除内存文件
+COMMON_LIB_API void common_lib::DeletMemFile(PST_MEM_FILE pstMemFile)
+{
+	if (pstMemFile->pvMem != NULL)
+	{
+		UnmapViewOfFile(pstMemFile->pvMem);
+		CloseHandle(pstMemFile->hMem);
+
+		pstMemFile->hMem = INVALID_HANDLE_VALUE;
+		pstMemFile->pvMem = NULL;
+	}
+}
+
 //* 获取指定进程的命令行输入信息
 static INT __GetProcCmdLine(PROCNTQSIP pfunNTIf, UINT unPID, CHAR *pszCmdLine)
 {
