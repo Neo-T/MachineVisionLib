@@ -31,12 +31,6 @@ namespace caffe
 #define FACE_DATA_FILE_NAME		"NEO-FACEFEATURE-DATA.DAT"	//* 加载人脸特征数据到内存时，内存文件的名称
 #define PERSON_NAME_FILE_NAME	"NEO-PERSON-NAME.TXT"		//* 加载人名数据到内存时，内存文件的名称
 
-//* 人脸数据
-typedef struct _ST_FACE_DATA_ {
-	const CHAR *pbaPersonName;
-	const FLOAT *pflaFaceData;
-} ST_FACE_DATA, *PST_FACE_DATA;
-
 //* 人脸数据库统计信息
 typedef struct _ST_FACE_DB_STATIS_INFO_ {
 	INT nPersonNum;				//* 人数
@@ -74,6 +68,9 @@ public:
 	void GetFaceDBStatisInfo(PST_FACE_DB_STATIS_INFO pstInfo);
 	BOOL LoadFaceData(void);
 
+	DOUBLE Predict(Mat& matImg, string& strPersonName, FLOAT flConfidenceThreshold = 0.3, FLOAT flStopPredictThreshold = 0.95);
+	DOUBLE Predict(const CHAR *pszImgName, string& strPersonName, FLOAT flConfidenceThreshold = 0.3, FLOAT flStopPredictThreshold = 0.95);
+
 	caffe::Net<FLOAT> *pcaflNet;
 	caffe::MemoryDataLayer<FLOAT> *pflMemDataLayer;
 
@@ -83,10 +80,9 @@ private:
 	Mat ExtractFaceChips(const CHAR *pszImgName, FLOAT flScale = 1.05f, INT nMinNeighbors = 5, INT nMinPossibleFaceSize = 16);
 	Mat FaceChipsHandle(Mat& matFaceChips, DOUBLE dblPowerValue = 0.1, DOUBLE dblGamma = 0.2, DOUBLE dblNorm = 10);	
 	void UpdateFaceDBStatisticFile(const string& strPersonName);
-	void PutFaceDataToMemFile(void);
+	void PutFaceToMemFile(void);
 
 	ST_MEM_FILE stMemFileFaceData;
 	ST_MEM_FILE stMemFilePersonName;
-
-	ST_FACE_DATA stFaceData;
+	INT nActualNumOfPerson;
 };

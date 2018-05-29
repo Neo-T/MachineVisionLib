@@ -1098,6 +1098,28 @@ MACHINEVISIONLIB_API INT cv2shell::GetObjectNum(vector<RecogCategory> &vObjects,
 	return nObjectNum;
 }
 
+//* 利用余弦计算相似度，关于此，理论描述及公式参见：
+//* https://blog.csdn.net/u012160689/article/details/15341303
+//* C++算法实现参见：
+//* https://blog.csdn.net/akadiao/article/details/79767113
+MACHINEVISIONLIB_API DOUBLE cv2shell::CosineSimilarity(const FLOAT *pflaBaseData, const FLOAT *pflaTargetData, UINT unDimension)
+{
+	DOUBLE dblDotProduct = 0.0f;
+	DOUBLE dblQuadraticSumOfBase = 0.0f;
+	DOUBLE dblQuadraticSumOfTarget = 0.0f;
+
+	for (UINT i = 0; i < unDimension; i++)
+	{
+		//* 点积
+		dblDotProduct += pflaBaseData[i] * pflaTargetData[i];
+
+		dblQuadraticSumOfBase += (pflaBaseData[i] * pflaBaseData[i]);
+		dblQuadraticSumOfTarget += (pflaTargetData[i] * pflaTargetData[i]);
+	}
+
+	return dblDotProduct / (sqrt(dblQuadraticSumOfBase) * sqrt(dblQuadraticSumOfTarget));
+}
+
 CMachineVisionLib::CMachineVisionLib()
 {
     return;
@@ -1128,7 +1150,7 @@ caffe::Net<DType>* caffe2shell::LoadNet(std::string strParamFile, std::string st
 //* 提取图像特征
 template <typename DType> 
 void caffe2shell::ExtractFeature(caffe::Net<DType> *pNet, caffe::MemoryDataLayer<DType> *pMemDataLayer, 
-									Mat& matImgROI, vector<DType>& vImgFeature, INT nFeatureDimension, const CHAR *pszBlobName)
+									Mat& matImgROI, DType *pdtaImgFeature, INT nFeatureDimension, const CHAR *pszBlobName)
 {
 	//* 将数据和标签放入网络
 	vector<Mat> vmatImgROI;
@@ -1156,7 +1178,7 @@ void caffe2shell::ExtractFeature(caffe::Net<DType> *pNet, caffe::MemoryDataLayer
 
 	//* 将特征数据存入出口参数，供上层调用函数使用
 	for (INT i = 0; i < nFeatureDimension; i++)
-		vImgFeature.push_back(pFeatureData[i]);
+		pdtaImgFeature[i] = pFeatureData[i];
 }
 
 //* 提取图像特征

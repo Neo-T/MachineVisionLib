@@ -280,6 +280,12 @@ void FaceDatabase::GetFaceDBStatisInfo(PST_FACE_DB_STATIS_INFO pstInfo)
 
 BOOL FaceDatabase::AddFace(Mat& matImg, const string& strPersonName)
 {
+	if (matImg.empty())
+	{
+		cout << "error para in " << __FUNCTION__ << "(), in file " << __FILE__ << ", line " << __LINE__ - 3 << ", the parameter matImg is empty." << GetLastError() << endl;
+		return FALSE;
+	}
+
 	if (IsPersonAdded(strPersonName))
 	{
 		cout << strPersonName  << " has been added to the face database." << endl;
@@ -295,7 +301,7 @@ BOOL FaceDatabase::AddFace(Mat& matImg, const string& strPersonName)
 	}
 
 	imshow("pic", matFaceChips);
-	cv::waitKey(0);
+	cv::waitKey(60);
 
 	//* ROI(region of interest)，按照一定算法将脸部区域转换为caffe网络特征提取需要的输入数据
 	Mat matFaceROI = FaceChipsHandle(matFaceChips);
@@ -313,7 +319,6 @@ BOOL FaceDatabase::AddFace(Mat& matImg, const string& strPersonName)
 	//* 保存人数和人名字节数，用于人脸数据库加载
 	UpdateFaceDBStatisticFile(strPersonName);
 
-
 	return TRUE;
 }
 
@@ -330,7 +335,33 @@ BOOL FaceDatabase::AddFace(const CHAR *pszImgName, const string& strPersonName)
 	return AddFace(matImg, strPersonName);
 }
 
-void FaceDatabase::PutFaceDataToMemFile(void)
+//* 将人脸数据从文件中取出并放入指定内存
+static BOOL __PutFaceDataFromFile(const string strFaceDataFile, FLOAT *pflFaceData)
+{
+	Mat matFaceFeatureData;
+
+	FileStorage fs;
+	if (fs.open(strFaceDataFile, FileStorage::READ))
+	{
+		fs["VGG-FACEFEATURE"] >> matFaceFeatureData;
+
+		fs.release();
+
+		for (INT i=0; i < FACE_FEATURE_DIMENSION; i++)
+			pflFaceData[i] = matFaceFeatureData.at<FLOAT>(0, i);
+
+		return TRUE;
+	}
+	else
+	{
+		cout << "File 『" << strFaceDataFile << "』 not exist." << endl;
+
+		return FALSE;
+	}	
+}
+
+//* 将人脸数据写入内存文件
+void FaceDatabase::PutFaceToMemFile(void)
 {
 	HANDLE hDir = CLIBOpenDirectory(FACE_DB_PATH);
 	if (hDir == INVALID_HANDLE_VALUE)
@@ -342,10 +373,17 @@ void FaceDatabase::PutFaceDataToMemFile(void)
 	UINT unNameLen, unWriteBytes;
 	string strFileName;
 	unWriteBytes = 0;
+	nActualNumOfPerson = 0;
 	while ((unNameLen = CLIBReadDir(hDir, strFileName)) > 0)
 	{
-		size_t sztEndPos = strFileName.rfind(".xml");
-		
+		//* 写入特征数据
+		string strFaceDataFile = string(FACE_DB_PATH) + "/" + strFileName;
+		if (!__PutFaceDataFromFile(strFaceDataFile, ((FLOAT *)stMemFileFaceData.pvMem) + nActualNumOfPerson * FACE_FEATURE_DIMENSION))
+			continue;		
+		nActualNumOfPerson++;
+
+		//* 写入文件名
+		size_t sztEndPos = strFileName.rfind(".xml");		
 		string strPersonName = strFileName.substr(0, sztEndPos);
 		sprintf(((CHAR*)stMemFilePersonName.pvMem) + unWriteBytes, "%s", strPersonName.c_str());
 		unWriteBytes += strPersonName.size() + 1;		
@@ -354,7 +392,7 @@ void FaceDatabase::PutFaceDataToMemFile(void)
 	CLIBCloseDirectory(hDir);
 }
 
-//* 从数据库中加载人脸数据到内存，参数pstFaceData接收人脸数据在内存中的保存地址
+//* 从数据库中加载人脸数据到内存
 BOOL FaceDatabase::LoadFaceData(void)
 {
 	ST_FACE_DB_STATIS_INFO stInfo;
@@ -382,9 +420,98 @@ BOOL FaceDatabase::LoadFaceData(void)
 	}
 	memset((CHAR*)stMemFilePersonName.pvMem, 0, stInfo.nTotalLenOfPersonName);
 
-	//* 加载数据	
-	PutFaceDataToMemFile();
+	//* 将人脸数据放入内存文件
+	PutFaceToMemFile();
+
+	//* 验证代码，正常逻辑不需要
+	//const CHAR *pszPerson = (const CHAR *)stMemFilePersonName.pvMem;
+	//const FLOAT *pflaData = (FLOAT*)stMemFileFaceData.pvMem;
+	//for (INT i = 0; i < nActualNumOfPerson; i++)
+	//{
+	//	cout << "『Name』 " << pszPerson << " ";
+	//	pszPerson += strlen(pszPerson) + 1;
+
+	//	cout << pflaData[i * FACE_FEATURE_DIMENSION] << " " << pflaData[i * FACE_FEATURE_DIMENSION + 1]
+	//		<< " " << pflaData[i * FACE_FEATURE_DIMENSION + 2] << " " << pflaData[i * FACE_FEATURE_DIMENSION + 3] << endl;
+	//}
 	
 	return TRUE;
+}
+
+//* 返回相似度，参数strPersonName接收找到的人名，flConfidenceThreshold指定最低可信度值，低于这个值就认为不是这个人
+//* flStopPredictThreshold指定停止查找的阈值，因为函数会检索整个数据库以找到最大相似度的人脸，有了这个值函数只要找到大于这个
+//* 值的人脸就停止查找了，这样可有效提升效率
+DOUBLE FaceDatabase::Predict(Mat& matImg, string& strPersonName, FLOAT flConfidenceThreshold, FLOAT flStopPredictThreshold)
+{
+	if (matImg.empty())
+	{
+		cout << "error para in " << __FUNCTION__ << "(), in file " << __FILE__ << ", line " << __LINE__ - 3 << ", the parameter matImg is empty." << GetLastError() << endl;
+		return 0;
+	}
+
+	//* 从图片中提取脸部区域
+	Mat matFaceChips = ExtractFaceChips(matImg);
+	if (matFaceChips.empty())
+	{
+		cout << "No face was detected." << endl;
+		return 0;
+	}
+
+	imshow("pic", matFaceChips);
+	cv::waitKey(60);
+
+	//* ROI(region of interest)，按照一定算法将脸部区域转换为caffe网络特征提取需要的输入数据
+	Mat matFaceROI = FaceChipsHandle(matFaceChips);
+
+	//* 通过caffe网络提取图像特征
+	FLOAT flaFaceFeature[FACE_FEATURE_DIMENSION];
+	caffe2shell::ExtractFeature(pcaflNet, pflMemDataLayer, matFaceROI, flaFaceFeature, FACE_FEATURE_DIMENSION, FACE_FEATURE_LAYER_NAME);
+
+	//* 查找匹配的脸部特征
+	const CHAR *pszPerson = (const CHAR *)stMemFilePersonName.pvMem;
+	const FLOAT *pflaData = (FLOAT*)stMemFileFaceData.pvMem;
+	DOUBLE dblMaxSimilarity = flConfidenceThreshold, dblSimilarity;
+	const CHAR *pszMatchPersonName = NULL;
+	for (INT i = 0; i < nActualNumOfPerson; i++)
+	{		
+		dblSimilarity = cv2shell::CosineSimilarity(pflaData + i * FACE_FEATURE_DIMENSION, flaFaceFeature, FACE_FEATURE_DIMENSION);
+		if (dblSimilarity > dblMaxSimilarity)
+		{
+			//* 大于停止查找的阈值，基本就可以确定是这个人了，所以不再查找了
+			if (dblSimilarity > flStopPredictThreshold)
+			{
+				strPersonName = pszPerson;
+
+				return dblSimilarity;
+			}
+
+			dblMaxSimilarity = dblSimilarity;
+			pszMatchPersonName = pszPerson;
+		}
+
+		cout << pszPerson << ":" << dblSimilarity << endl;
+		
+		//* 下一个
+		pszPerson += strlen(pszPerson) + 1;
+	}
+
+	//* 超过了用户容忍的最小相似度值，则可以认为找到了
+	if (dblMaxSimilarity > flConfidenceThreshold)	
+		strPersonName = pszMatchPersonName;
+
+	return dblMaxSimilarity;
+}
+
+DOUBLE FaceDatabase::Predict(const CHAR *pszImgName, string& strPersonName, FLOAT flConfidenceThreshold, FLOAT flStopPredictThreshold)
+{
+	Mat matImg = imread(pszImgName);
+	if (matImg.empty())
+	{
+		cout << "Predict() error：unable to read the picture, please confirm that the picture『" << pszImgName << "』 exists and the format is corrrect." << endl;
+
+		return FALSE;
+	}
+
+	return Predict(matImg, strPersonName, flConfidenceThreshold);
 }
 

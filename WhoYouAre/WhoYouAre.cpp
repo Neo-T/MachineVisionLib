@@ -71,6 +71,18 @@ int _tmain(int argc, _TCHAR* argv[])
 			cout << "Load Failed, the process will be exited!" << endl;
 			return -1;
 		}
+
+		cout << "Start find ..." << endl;
+		string strPersonName;
+		DOUBLE dblSimilarity = face_db.Predict(argv[2], strPersonName);
+		if (dblSimilarity > 0.3)
+		{
+			cout << "Found a matched face: ¡º" << strPersonName << "¡», the similarity is " << dblSimilarity << endl;
+		}
+		else
+			cout << "Not found matched face." << endl;
+
+		cout << "Stop find." << endl;
 	}
 	else
 	{
