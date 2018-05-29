@@ -79,6 +79,9 @@ Mat FaceDatabase::ExtractFaceChips(Mat matImg, FLOAT flScale, INT nMinNeighbors,
 	extract_image_chips(dlib::cv_image<uchar>(matGray), get_face_chip_details(shapes), FaceChips);
 	Mat matFace = dlib::toMat(FaceChips[0]);
 
+	//* 经过dlib处理后，matFace并不是灰度图像，需要转成灰度图像才可
+	cvtColor(matFace, matFace, CV_BGR2GRAY);
+
 	//* 按照网络要求调整为224,224大小
 	resize(matFace, matFace, Size(224, 224));
 
@@ -101,6 +104,8 @@ Mat FaceDatabase::ExtractFaceChips(const CHAR *pszImgName, FLOAT flScale, INT nM
 }
 
 //FACE_PROCESSING_EXT Mat FaceProcessing(const Mat &img_, double gamma = 0.8, double sigma0 = 0, double sigma1 = 0, double mask = 0, double do_norm = 8);
+//* 理论及公式，参见：
+//* https://blog.csdn.net/wuzuyu365/article/details/51898714
 Mat FaceDatabase::FaceChipsHandle(Mat& matFaceChips, DOUBLE dblPowerValue, DOUBLE dblGamma, DOUBLE dblNorm)
 {
 	FLOAT *pflData;
@@ -117,8 +122,14 @@ Mat FaceDatabase::FaceChipsHandle(Mat& matFaceChips, DOUBLE dblPowerValue, DOUBL
 	for (INT i = 0; i < matFloat.rows; i++)
 	{
 		for (INT j = 0; j < matFloat.cols; j++)
-			matFloat.ptr<FLOAT>(i)[j] = pow(matFloat.ptr<float>(i)[j], dblGamma);		
+			matFloat.ptr<FLOAT>(i)[j] = pow(matFloat.ptr<FLOAT>(i)[j], dblGamma);		
 	}
+
+	//GaussianBlur(matFloat, matFloat, Size(7, 7), 0, 0);
+	Mat kern = (Mat_<char>(3, 3) << 0, -1, 0,
+		-1, 5, -1,
+		0, -1, 0);
+	filter2D(matFloat, matFloat, matFloat.depth(), kern);
 
 	//* 如果为0.0则直接跳到最后一步
 	DOUBLE dblTrim = fabs(dblNorm);
@@ -209,6 +220,17 @@ __lblEnd:
 	//* 归一化
 	normalize(matFloat, matFloat, 0, 255, NORM_MINMAX);
 	matFloat.convertTo(matFloat, CV_8UC1);
+
+	//* 进入caffe提取特征之前，必须为RGB格式才可，否则caffe会报错
+	cvtColor(matFloat, matFloat, CV_GRAY2RGB);
+
+	//* 验证代码，正常逻辑不需要
+	FileStorage fs("mat.xml", FileStorage::WRITE);
+	fs << "MAT-DATA" << matFloat;	
+	fs.release();
+
+	imshow("FaceHandler", matFloat);
+	waitKey(0);
 
 	return matFloat;
 }
