@@ -103,9 +103,85 @@ Mat FaceDatabase::ExtractFaceChips(const CHAR *pszImgName, FLOAT flScale, INT nM
 	return ExtractFaceChips(matImg, flScale, nMinNeighbors, nMinPossibleFaceSize);
 }
 
+
+//* 行列卷积
+int gauss(float x[], float y[], int length, float sigma)
+{
+	int i;
+	float sum = 0.0;
+	for (i = 0; i<length; i++)
+	{
+		x[i] = exp(-pow(x[i], 2) / (2 * pow(sigma, 2)));
+		sum += x[i];
+	}
+
+	for (i = 0; i<length; i++)
+	{
+		y[i] = x[i] / sum;
+	}
+	return 1;
+}
+
+//高斯滤波
+Mat gaussianfilter(Mat& img, double sigma0, double sigma1, double shift1 = 0, double shift2 = 0)
+{
+	int i;
+
+	Mat img2 = img;
+	Mat  imgResult;
+
+	//将数据存入横向高斯模板中
+	int rowLength = (int)(floor(3.0*sigma0 + 0.5 - shift1) - ceil(-3.0*sigma0 - 0.5 - shift1) + 1);	
+	int rowBegin = (int)ceil(-3.0*sigma0 - 0.5 - shift1);
+
+	cout << rowLength << " " << rowBegin << endl;
+
+	float rowArray[15], Gx[15];
+	for (i = 0; i < rowLength; i++)
+	{
+		rowArray[i] = rowBegin + i;
+	}
+
+	gauss(rowArray, Gx, rowLength, sigma0);
+	Mat kx = Mat(1, rowLength, CV_32F); //转换成mat类型
+	float *pData1 = kx.ptr<float>(0);
+	for (i = 0; i < rowLength; i++)
+	{
+		pData1[i] = Gx[i];
+	}
+
+	//将数据存入纵向高斯模板中
+	int colLength = (int)(floor(3.0*sigma1 + 0.5 - shift2) - ceil(-3.0*sigma1 - 0.5 - shift2) + 1);
+	int colBegin = (int)ceil(-3.0*sigma1 - 0.5 - shift2);
+	cout << colLength << " " << colBegin << endl;
+
+	float colArray[15], Gy[15];
+	for (i = 0; i<colLength; i++)
+	{
+		colArray[i] = colBegin + i;
+	}
+	gauss(colArray, Gy, colLength, sigma1);
+	Mat ky = Mat(colLength, 1, CV_32F);
+	float *pData2;
+	for (i = 0; i < colLength; i++)
+	{
+		pData2 = ky.ptr<float>(i);
+		pData2[0] = Gy[i];
+	}
+
+	filter2D(img, img2, img.depth(), kx, Point(-1, -1));
+	filter2D(img2, imgResult, img2.depth(), ky, Point(-1, -1));
+
+	return imgResult;
+
+}
+
+
 //FACE_PROCESSING_EXT Mat FaceProcessing(const Mat &img_, double gamma = 0.8, double sigma0 = 0, double sigma1 = 0, double mask = 0, double do_norm = 8);
 //* 理论及公式，参见：
 //* https://blog.csdn.net/wuzuyu365/article/details/51898714
+//* 关于伽玛校正的理论资料：
+//* https://blog.csdn.net/w450468524/article/details/51649651
 Mat FaceDatabase::FaceChipsHandle(Mat& matFaceChips, DOUBLE dblPowerValue, DOUBLE dblGamma, DOUBLE dblNorm)
 {
 	FLOAT *pflData;
@@ -114,6 +190,22 @@ Mat FaceDatabase::FaceChipsHandle(Mat& matFaceChips, DOUBLE dblPowerValue, DOUBL
 	Mat matFloat;
 	matFaceChips.convertTo(matFloat, CV_32F);
 		
+
+
+
+
+
+	Mat imT1, imT2;
+	DOUBLE dblSigma0 = 1, dblSigma1 = -2;
+	INT nExtendedBoundaryLen = floor(3 * abs(dblSigma1));	//* 图形边界要扩充的尺寸
+	Mat matExtended(Size(matFloat.cols + 2 * nExtendedBoundaryLen, matFloat.rows + 2 * nExtendedBoundaryLen), CV_32F, Scalar(0));	//* 根据原图尺寸建立一个四个边界等距扩展的矩阵，用于存储计算过程数据
+
+
+
+
+
+	
+	
 	Mat matTransit(Size(matFloat.cols, matFloat.rows), CV_32F, Scalar(0));	//* 计算用的过渡矩阵
 	
 	//* 不允许gamma值为0，也就是强制提升阴影区域的对比度
@@ -126,10 +218,90 @@ Mat FaceDatabase::FaceChipsHandle(Mat& matFaceChips, DOUBLE dblPowerValue, DOUBL
 	}
 
 	//GaussianBlur(matFloat, matFloat, Size(7, 7), 0, 0);
-	Mat kern = (Mat_<char>(3, 3) << 0, -1, 0,
-		-1, 5, -1,
-		0, -1, 0);
-	filter2D(matFloat, matFloat, matFloat.depth(), kern);
+	//Mat kern = (Mat_<char>(3, 3) << 0, -1, 0,
+	//	-1, 5, -1,
+	//	0, -1, 0);
+	//filter2D(matFloat, matFloat, matFloat.depth(), kern);
+
+
+
+
+
+
+	//* 如果没有扩充边界，则直接进入下一步计算
+	if (fabs(dblSigma1) < 1e-6)
+		goto __lblDoNormalizes;
+
+	//* 逐行读取图像数据到扩展矩阵，最终达成如下图所示的效果：
+	/*
+	上方边界
+	左上角 =================== 右上角
+	||               ||
+	左||    扩充前的   ||右
+	边||    图像区域   ||边
+	界||               ||界
+	||               ||
+	左下角 =================== 右下角
+	下方边界
+	*/
+	for (INT i = 0; i < matExtended.rows; i++)
+	{
+		pflData = matExtended.ptr<FLOAT>(i);
+		for (INT j = 0; j < matExtended.cols; j++)
+		{
+			//* 读取图像原有数据区，也就是扩充边界包围起来的实际图像数据区域（扩充前的图像数据）
+			if (i >= nExtendedBoundaryLen &&
+				i < matFloat.rows + nExtendedBoundaryLen &&
+				j >= nExtendedBoundaryLen &&
+				j < matFloat.cols + nExtendedBoundaryLen)
+				pflData[j] = matFloat.ptr<FLOAT>(i - nExtendedBoundaryLen)[j - nExtendedBoundaryLen];
+			//* 左上角，用原始图像左上角的数据填充
+			else if (i < nExtendedBoundaryLen && j < nExtendedBoundaryLen)
+				pflData[j] = matFloat.ptr<FLOAT>(0)[0];
+			//* 右上角，用原始图像右上角的数据填充
+			else if (i < nExtendedBoundaryLen && j >= matFloat.cols + nExtendedBoundaryLen)
+				pflData[j] = matFloat.ptr<FLOAT>(0)[matFloat.cols - 1];
+			//* 左下角，用原始图像左下角的数据填充
+			else if (i >= matFloat.rows + nExtendedBoundaryLen && j < nExtendedBoundaryLen)
+				pflData[j] = matFloat.ptr<FLOAT>(matFloat.rows - 1)[0];
+			//* 右下角，用原始图像右下角的数据填充
+			else if (i >= matFloat.rows + nExtendedBoundaryLen && j >= matFloat.cols + nExtendedBoundaryLen)
+				pflData[j] = matFloat.ptr<FLOAT>(matFloat.rows - 1)[matFloat.cols - 1];
+			//* 上扩充边界，用原始图像最顶端一行的数据填充
+			else if (i < nExtendedBoundaryLen && j >= nExtendedBoundaryLen && j < matFloat.cols + nExtendedBoundaryLen)
+				pflData[j] = matFloat.ptr<FLOAT>(0)[j - nExtendedBoundaryLen];
+			//* 下扩充边界,用原始图像最底端一行的数据填充
+			else if (i >= matFloat.rows + nExtendedBoundaryLen && j >= nExtendedBoundaryLen && j < matFloat.cols + nExtendedBoundaryLen)
+				pflData[j] = matFloat.ptr<FLOAT>(matFloat.rows - 1)[j - nExtendedBoundaryLen];
+			//* 左扩充边界，用原始图像最左边一行的数据填充
+			else if (j < nExtendedBoundaryLen && i >= nExtendedBoundaryLen && i < matFloat.rows + nExtendedBoundaryLen)
+				pflData[j] = matFloat.ptr<FLOAT>(i - nExtendedBoundaryLen)[0];
+			//* 右扩充边界，用原始图像最右边一行的数据填充
+			else if (j >= matFloat.cols + nExtendedBoundaryLen && i >= nExtendedBoundaryLen && i < matFloat.rows + nExtendedBoundaryLen)
+				pflData[j] = matFloat.ptr<FLOAT>(i - nExtendedBoundaryLen)[matFloat.cols - 1];
+			else;
+		}
+	}
+	
+	imT1 = gaussianfilter(matExtended, dblSigma0, dblSigma0);
+	imT2 = gaussianfilter(matExtended, -dblSigma1, -dblSigma1);
+	matExtended = imT1 - imT2;
+
+	for (int i = 0; i<matFloat.rows; i++)
+	{
+		pflData = matFloat.ptr<float>(i);
+		for (int j = 0; j<matFloat.cols; j++)
+			pflData[j] = matExtended.ptr<float>(i + nExtendedBoundaryLen)[j + nExtendedBoundaryLen];
+	}
+
+__lblDoNormalizes:
+
+
+
+
+
+
+
 
 	//* 如果为0.0则直接跳到最后一步
 	DOUBLE dblTrim = fabs(dblNorm);
@@ -224,13 +396,13 @@ __lblEnd:
 	//* 进入caffe提取特征之前，必须为RGB格式才可，否则caffe会报错
 	cvtColor(matFloat, matFloat, CV_GRAY2RGB);
 
+	imshow("FaceChipsHandle", matFloat);
+	waitKey(0);
+
 	//* 验证代码，正常逻辑不需要
 	FileStorage fs("mat.xml", FileStorage::WRITE);
 	fs << "MAT-DATA" << matFloat;	
 	fs.release();
-
-	imshow("FaceHandler", matFloat);
-	waitKey(0);
 
 	return matFloat;
 }
@@ -322,8 +494,8 @@ BOOL FaceDatabase::AddFace(Mat& matImg, const string& strPersonName)
 		return FALSE;
 	}
 
-	imshow("pic", matFaceChips);
-	cv::waitKey(60);
+	//imshow("pic", matFaceChips);
+	//cv::waitKey(60);
 
 	//* ROI(region of interest)，按照一定算法将脸部区域转换为caffe网络特征提取需要的输入数据
 	Mat matFaceROI = FaceChipsHandle(matFaceChips);
@@ -479,8 +651,8 @@ DOUBLE FaceDatabase::Predict(Mat& matImg, string& strPersonName, FLOAT flConfide
 		return 0;
 	}
 
-	imshow("pic", matFaceChips);
-	cv::waitKey(60);
+	//imshow("pic", matFaceChips);
+	//cv::waitKey(60);
 
 	//* ROI(region of interest)，按照一定算法将脸部区域转换为caffe网络特征提取需要的输入数据
 	Mat matFaceROI = FaceChipsHandle(matFaceChips);
