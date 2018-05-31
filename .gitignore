@@ -26,10 +26,9 @@ x64/bin/*.dll
 x64/bin/*.exe
 x64/bin/*.xml
 x64/bin/PERSONS/*
-!x64/bin/TEST-PIC/*
 x86/
 bld/
-[Bb]in/
+![Bb]in/
 [Oo]bj/
 [Ll]og/
 .svn/
