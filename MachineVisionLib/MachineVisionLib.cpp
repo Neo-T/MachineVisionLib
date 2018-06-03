@@ -45,9 +45,10 @@ MACHINEVISIONLIB_API void cv2shell::CV2Canny(const CHAR *pszImgName, Mat &matOut
 	}
 }
 
-//* 播放一段网路摄像头实时视频，参数pszNetURL用于指定实时视频播放地址，比如：
-//* rtsp://admin:abcd1234@192.168.0.250/mjpeg/ch1
-MACHINEVISIONLIB_API void cv2shell::CV2ShowVideoFromNetCamera(const CHAR *pszNetURL)
+//* 既可以播放一段rtsp视频流、video文件还可以播放本地摄像头拍摄的实时视频，比如传入如下字符串作为参数：
+//* rtsp://admin:abcd1234@192.168.0.250/mjpeg/ch1，指定播放网络摄像头拍摄的rtsp实时视频流
+template <typename DType>
+void cv2shell::CV2ShowVideo(DType dtVideoSrc)
 {
 	Mat mSrc;
 	VideoCapture video;
@@ -57,8 +58,16 @@ MACHINEVISIONLIB_API void cv2shell::CV2ShowVideoFromNetCamera(const CHAR *pszNet
 	{
 		if (blIsNotOpen)
 		{
-			if (video.open(pszNetURL))
+			if (video.open(dtVideoSrc))
+			{
 				blIsNotOpen = FALSE;
+
+				video.set(CV_CAP_PROP_FRAME_WIDTH, 1280);
+				video.set(CV_CAP_PROP_FRAME_HEIGHT, 960);
+
+				cout << video.get(CV_CAP_PROP_FRAME_WIDTH) << endl;
+				cout << video.get(CV_CAP_PROP_FRAME_HEIGHT) << endl;
+			}
 			else
 			{
 				Sleep(1000);
@@ -68,7 +77,8 @@ MACHINEVISIONLIB_API void cv2shell::CV2ShowVideoFromNetCamera(const CHAR *pszNet
 
 		if (video.read(mSrc))
 		{
-			imshow(pszNetURL, mSrc);
+			String strWinName = String("视频流【") + dtVideoSrc +  String("】");
+			imshow(strWinName, mSrc);
 			if (waitKey(40) >= 0)
 				break;
 		}
@@ -81,11 +91,11 @@ MACHINEVISIONLIB_API void cv2shell::CV2ShowVideoFromNetCamera(const CHAR *pszNet
 	}
 }
 
-//* 获取网络摄像头的实时视频数据，并允许用户通过回调函数形式处理收到的实时视频数据，调用例子如下：
-//* CV2ShowVideoFromNetCamera("rtsp://admin:abcd1234@192.168.0.250/mjpeg/ch1", CLSCV2Shell::CV2Canny);
-MACHINEVISIONLIB_API void cv2shell::CV2ShowVideoFromNetCamera(const CHAR *pszNetURL, PCB_NETVIDEOHANDLER pfunNetVideoHandler)
+//* 同上，只是增加了回调处理函数
+template <typename DType>
+void cv2shell::CV2ShowVideo(DType dtVideoSrc, PCB_VIDEOHANDLER pfunNetVideoHandler, UINT unInputParam)
 {
-	Mat mSrc, mHandleData;
+	Mat mSrc;
 	VideoCapture video;
 
 	bool blIsNotOpen = TRUE;
@@ -94,7 +104,7 @@ MACHINEVISIONLIB_API void cv2shell::CV2ShowVideoFromNetCamera(const CHAR *pszNet
 	{
 		if (blIsNotOpen)
 		{
-			if (video.open(pszNetURL))
+			if (video.open(dtVideoSrc))
 				blIsNotOpen = FALSE;
 			else
 			{
@@ -105,13 +115,10 @@ MACHINEVISIONLIB_API void cv2shell::CV2ShowVideoFromNetCamera(const CHAR *pszNet
 
 		if (video.read(mSrc))
 		{
-			mHandleData = mSrc;
 			if (NULL != pfunNetVideoHandler)
 			{
-				mHandleData = pfunNetVideoHandler(mSrc);
+				pfunNetVideoHandler(mSrc, unInputParam);
 			}
-
-			imshow(pszNetURL, mHandleData);
 
 			if (waitKey(40) >= 0)
 				break;
@@ -545,6 +552,17 @@ MACHINEVISIONLIB_API void cv2shell::MarkFaceWithRectangle(Mat &matImg, INT *pnFa
 	free(pnFaces);
 }
 
+MACHINEVISIONLIB_API void cv2shell::MarkFaceWithRectangle(Mat &matImg, FLOAT flScale, INT nMinNeighbors, INT nMinPossibleFaceSize)
+{
+	INT *pnFaces = FaceDetect(matImg, flScale, nMinNeighbors, nMinPossibleFaceSize);
+	if (!pnFaces)
+		return;
+
+	MarkFaceWithRectangle(matImg, pnFaces);
+
+	imshow("Face Detect Result", matImg);
+}
+
 MACHINEVISIONLIB_API void cv2shell::MarkFaceWithRectangle(const CHAR *pszImgName, FLOAT flScale, INT nMinNeighbors, INT nMinPossibleFaceSize)
 {
 	Mat matImg = imread(pszImgName);
@@ -554,13 +572,7 @@ MACHINEVISIONLIB_API void cv2shell::MarkFaceWithRectangle(const CHAR *pszImgName
 		return;
 	}
 
-	INT *pnFaces = FaceDetect(matImg, flScale, nMinNeighbors, nMinPossibleFaceSize);
-	if (!pnFaces)
-		return;
-
-	MarkFaceWithRectangle(matImg, pnFaces);
-
-	imshow("Face Detect Result", matImg);
+	MarkFaceWithRectangle(matImg, flScale, nMinNeighbors, nMinPossibleFaceSize);
 }
 
 //* 初始化用于人脸检测的DNN网络
@@ -1167,14 +1179,9 @@ void caffe2shell::ExtractFeature(caffe::Net<DType> *pNet, caffe::MemoryDataLayer
 	//* 关于boost共享指针最详细的地址如下：
 	//* https://www.cnblogs.com/helloamigo/p/3575098.html
 	boost::shared_ptr<caffe::Blob<DType>> blobImgFeature = pNet->blob_by_name(pszBlobName);
-#if NEED_GPU
-	//* 使用GPU时直接从GPU读取数据可以跳过GPU->CPU的同步操作，这样能快一点
-	const DType *pFeatureData = blobImgFeature->gpu_data();
-#else
-	//* 使用GPU时也可以使用cpu_data()，因为调用cpu_data()时，caffe会自动同步GPU->CPU，但这样就需要耗费一些同步时间，所以只有单纯CPU时才调用cpu_data()
-	const DType *pFeatureData = blobImgFeature->cpu_data();
 
-#endif
+	//* 一旦调用cpu_data()，caffe会自动同步GPU->CPU（当然没有使用GPU，那么数据一直在CPU这边，caffe就不会自动同步了）
+	const DType *pFeatureData = blobImgFeature->cpu_data();
 
 	//* 将特征数据存入出口参数，供上层调用函数使用
 	for (INT i = 0; i < nFeatureDimension; i++)

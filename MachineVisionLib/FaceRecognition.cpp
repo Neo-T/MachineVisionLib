@@ -27,7 +27,7 @@ BOOL FaceDatabase::LoadCaffeVGGNet(string strCaffePrototxtFile, string strCaffeM
 		return FALSE;
 }
 
-Mat FaceDatabase::ExtractFaceChips(Mat matImg, FLOAT flScale, INT nMinNeighbors, INT nMinPossibleFaceSize)
+Mat FaceDatabase::ExtractFaceChips(Mat& matImg, FLOAT flScale, INT nMinNeighbors, INT nMinPossibleFaceSize)
 {
 	Mat matDummy;
 
@@ -227,8 +227,8 @@ __lblEnd:
 	//* 进入caffe提取特征之前，必须为RGB格式才可，否则caffe会报错
 	cvtColor(matFloat, matFloat, CV_GRAY2RGB);
 
-	imshow("FaceChipsHandle", matFloat);
-	waitKey(600);
+	//imshow("FaceChipsHandle", matFloat);
+	//waitKey(600);
 
 	//* 验证代码，正常逻辑不需要
 	//FileStorage fs("mat.xml", FileStorage::WRITE);
@@ -534,9 +534,48 @@ DOUBLE FaceDatabase::Predict(const CHAR *pszImgName, string& strPersonName, FLOA
 	{
 		cout << "Predict() error：unable to read the picture, please confirm that the picture『" << pszImgName << "』 exists and the format is corrrect." << endl;
 
-		return FALSE;
+		return 0;
 	}
 
 	return Predict(matImg, strPersonName, flConfidenceThreshold);
+}
+
+//* 视频预测模块
+DOUBLE VideoPredict::Predict(Mat& matVideoImg, string& strPersonName, FLOAT flConfidenceThreshold, FLOAT flStopPredictThreshold)
+{
+	cout << "1>>>>>>>>>>>>>>>>>>>>>" << endl;
+	Mat matGray;
+	cvtColor(matVideoImg, matGray, CV_BGR2GRAY);
+
+	cout << "2>>>>>>>>>>>>>>>>>>>>>" << endl;
+
+	cout << "<<<<<<<<<<<<<<<<<<<<<<<< " << flScale << endl;
+
+	//printf("%08X, %llf, %d, %d, %d, %d\r\n", (UINT)pubFeaceDetectResultBuf, flScale, nMinNeighbors, nMinPossibleFaceSize, matGray.cols, matGray.rows);
+	//printf("%llf\r\n", flScale);
+
+	//* 带特征点检测，这个函数要比DLib的特征点检测函数稍微快一些
+	INT nLandmark = 1;
+	INT *pnFaces = facedetect_multiview_reinforce(pubFeaceDetectResultBuf, (UCHAR*)(matGray.ptr(0)), matGray.cols, matGray.rows, (INT)matGray.step,
+													flScale, nMinNeighbors, nMinPossibleFaceSize, 0, nLandmark);
+	cout << "3>>>>>>>>>>>>>>>>>>>>>" << endl;
+	if (!pnFaces)
+		return 0;
+
+	for (INT i = 0; i < *pnFaces; i++)
+	{
+		SHORT *psScalar = ((SHORT*)(pnFaces + 1)) + LIBFACEDETECT_RESULT_STEP * i;
+		INT x = psScalar[0];
+		INT y = psScalar[1];
+		INT nWidth = psScalar[2];
+		INT nHeight = psScalar[3];
+		INT nNeighbors = psScalar[4];
+
+		Point left(x, y);
+		Point right(x + nWidth, y + nHeight);
+		rectangle(matVideoImg, left, right, Scalar(230, 255, 0), 1);
+	}
+
+	return 0;
 }
 

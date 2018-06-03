@@ -26,68 +26,149 @@
 #pragma comment( linker, "/subsystem:windows /entry:mainCRTStartup" )
 #endif
 
+//* 添加人脸
+static BOOL __AddFace(const CHAR *pszFaceImgFile, const CHAR *pezPersonName)
+{
+	FaceDatabase face_db;
+
+	//* 看看是否已经添加到数据库中
+	if (face_db.IsPersonAdded(pezPersonName))
+	{
+		cout << pezPersonName << " has been added to the face database." << endl;
+
+		return TRUE;
+	}
+
+
+	//* 加载特征提取网络
+	if (!face_db.LoadCaffeVGGNet("C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE_extract_deploy.prototxt",
+		"C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE.caffemodel"))
+	{
+		cout << "Load Failed, the process will be exited!" << endl;
+
+		return FALSE;
+	}
+
+	if (face_db.AddFace(pszFaceImgFile, pezPersonName))
+	{
+		cout << pezPersonName << " was successfully added to the face database." << endl;
+
+		return TRUE;
+	}		
+
+	return FALSE;
+}
+
+//* 通过图片预测人脸
+static void __PicturePredict(const CHAR *pszFaceImgFile)
+{
+	FaceDatabase face_db;
+
+	if (!face_db.LoadFaceData())
+	{
+		cout << "Load face data failed, the process will be exited!" << endl;
+		return;
+	}
+
+	if (!face_db.LoadCaffeVGGNet("C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE_extract_deploy.prototxt",
+		"C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE.caffemodel"))
+	{
+		cout << "Load Failed, the process will be exited!" << endl;
+		return;
+	}
+
+	cout << "Start find ..." << endl;
+	string strPersonName;
+	DOUBLE dblSimilarity = face_db.Predict(pszFaceImgFile, strPersonName);
+	if (dblSimilarity > 0.55)
+	{
+		cout << "Found a matched face: 『" << strPersonName << "』, the similarity is " << dblSimilarity << endl;
+	}
+	else
+		cout << "Not found matched face." << endl;
+
+	cout << "Stop find." << endl;
+}
+
+void __PredictThroughVideoData(cv::Mat &mVideoData, UINT unInputParam)
+{
+	//cv2shell::MarkFaceWithRectangle(mVideoData);
+
+	cout << "1.3##################### " << unInputParam << endl;
+	FaceDatabase *pface_db = (FaceDatabase*)unInputParam;
+	cout << "1.4##################### " << pface_db << endl;
+
+	string strPersonName;
+	cout << "2##################### " << pface_db->pvideo << endl;
+	DOUBLE dblSimilarity = pface_db->pvideo->Predict(mVideoData, strPersonName);
+	if (dblSimilarity > 0.85)
+	{
+		cout << "Found a matched face: 『" << strPersonName << "』, the similarity is " << dblSimilarity << endl;
+	}
+	else
+		cout << "Not found matched face." << endl;
+
+	imshow("Camera video", mVideoData);
+}
+
+//* 通过实时视频预测
+static void __VideoPredict(INT nCameraID)
+{
+	FaceDatabase face_db;
+
+	if (!face_db.LoadFaceData())
+	{
+		cout << "Load face data failed, the process will be exited!" << endl;
+		return;
+	}
+
+	if (!face_db.LoadCaffeVGGNet("C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE_extract_deploy.prototxt",
+		"C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE.caffemodel"))
+	{
+		cout << "Load Failed, the process will be exited!" << endl;
+		return;
+	}
+
+	FaceDatabase *pface_db = &face_db;
+	cout << "1.1##################### " << pface_db << endl;
+	cout << "1.2##################### " << pface_db->pvideo << endl;
+
+	cv2shell::CV2ShowVideo(nCameraID, __PredictThroughVideoData, (UINT)&face_db);
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
-	if (argc != 3 && argc != 4)
+	if (argc != 3 && argc != 4 && argc != 2)
 	{
-		cout << "Usage: " << endl << argv[0] << " Add [Img Path] [Person Name]" << endl;
-		cout << argv[0] << " Predict [Img Path]";
+		cout << "Usage: " << endl << argv[0] << " add [Img Path] [Person Name]" << endl;
+		cout << argv[0] << " predict [Img Path]" << endl;
+		cout << argv[0] << " video [camera number, If not specified, the default value is 0]" << endl;
 
 		return -1;
 	}
 
-	FaceDatabase face_db;
-
-	string strOptType(argv[1]);
-	if (string("Add") == strOptType)
+	String strOptType(argv[1]);
+	if (String("add") == strOptType.toLowerCase())
 	{
-		if (face_db.IsPersonAdded(argv[3]))
-		{
-			cout << argv[3] << " has been added to the face database." << endl;
-			return 0;
-		}
-
-		if (!face_db.LoadCaffeVGGNet("C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE_extract_deploy.prototxt",
-			"C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE.caffemodel"))
-		{
-			cout << "Load Failed, the process will be exited!" << endl;
-			return -1;
-		}
-
-		if (face_db.AddFace(argv[2], argv[3]))
-			cout << argv[3] << " was successfully added to the face database." << endl;
+		return __AddFace(argv[2], argv[3]);		
 	}
-	else if (string("Predict") == strOptType)
+	else if (string("predict") == strOptType.toLowerCase())
 	{
-		if (!face_db.LoadFaceData())
-		{
-			cout << "Load face data failed, the process will be exited!" << endl;
-			return -1;
-		}
+		__PicturePredict(argv[2]);		
+	}
+	else if (string("video") == strOptType.toLowerCase())
+	{
+		INT nCameraID = 0;
+		if(argc == 3)
+			nCameraID = atoi(argv[2]);
 
-		if (!face_db.LoadCaffeVGGNet("C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE_extract_deploy.prototxt",
-			"C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE.caffemodel"))
-		{
-			cout << "Load Failed, the process will be exited!" << endl;
-			return -1;
-		}
-
-		cout << "Start find ..." << endl;
-		string strPersonName;
-		DOUBLE dblSimilarity = face_db.Predict(argv[2], strPersonName);
-		if (dblSimilarity > 0.3)
-		{
-			cout << "Found a matched face: 『" << strPersonName << "』, the similarity is " << dblSimilarity << endl;
-		}
-		else
-			cout << "Not found matched face." << endl;
-
-		cout << "Stop find." << endl;
+		__VideoPredict(nCameraID);
 	}
 	else
 	{
-		cout << "Usage: " << endl << argv[0] << " Add [Img Path] [Person Name]" << endl;
-		cout << argv[0] << " Predict [Img Path]";
+		cout << "Usage: " << endl << argv[0] << " add [Img Path] [Person Name]" << endl;
+		cout << argv[0] << " predict [Img Path]" << endl;
+		cout << argv[0] << " video [camera number, If not specified, the default value is 0]" << endl;
 	}
 
     return 0;

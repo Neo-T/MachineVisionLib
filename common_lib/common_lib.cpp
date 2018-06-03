@@ -61,7 +61,6 @@ __lblReadDir:
 COMMON_LIB_API UINT common_lib::GetFileNumber(const CHAR *pszDirectName)
 {
 	WIN32_FIND_DATA stDirItem;
-	UINT unNameLen;
 	UINT unFileNum = 0;
 
 	HANDLE hDir = CLIBOpenDirectory(pszDirectName);

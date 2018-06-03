@@ -34,7 +34,7 @@
 #include <caffe/layers/softmax_layer.hpp>
 #endif
 
-#define NEED_GPU	0
+#define NEED_GPU	1
 
 using namespace cv;
 using namespace common_lib;
@@ -81,7 +81,7 @@ public:
 };
 
 //* 用于网络实时视频处理的回调函数原型声明
-typedef Mat(*PCB_NETVIDEOHANDLER)(Mat &mVideoData);
+typedef void (*PCB_VIDEOHANDLER)(Mat &mVideoData, UINT unInputParam);
 
 //* OpenCV接口
 namespace cv2shell {
@@ -93,8 +93,13 @@ namespace cv2shell {
 	MACHINEVISIONLIB_API void CV2Canny(Mat &mSrc, Mat &matOut);
 	MACHINEVISIONLIB_API void CV2Canny(const CHAR *pszImgName, Mat &matOut);
 
-	MACHINEVISIONLIB_API void CV2ShowVideoFromNetCamera(const CHAR *pszNetURL);
-	MACHINEVISIONLIB_API void CV2ShowVideoFromNetCamera(const CHAR *pszNetURL, PCB_NETVIDEOHANDLER pfunNetVideoHandler);
+	template <typename DType> void CV2ShowVideo(DType dtVideoSrc);
+	template MACHINEVISIONLIB_API void CV2ShowVideo(const CHAR *pszNetURL);
+	template MACHINEVISIONLIB_API void CV2ShowVideo(INT nCameraIdx);
+
+	template <typename DType> void CV2ShowVideo(DType dtVideoSrc, PCB_VIDEOHANDLER pfunNetVideoHandler, UINT unInputParam);
+	template MACHINEVISIONLIB_API void CV2ShowVideo(const CHAR *pszNetURL, PCB_VIDEOHANDLER pfunNetVideoHandler, UINT unInputParam);
+	template MACHINEVISIONLIB_API void CV2ShowVideo(INT nCameraIdx, PCB_VIDEOHANDLER pfunNetVideoHandler, UINT unInputParam);
 
 	MACHINEVISIONLIB_API void CV2CreateAlphaMat(Mat &mat);
 
@@ -110,6 +115,7 @@ namespace cv2shell {
 	MACHINEVISIONLIB_API INT *FaceDetect(const CHAR *pszImgName, FLOAT flScale = 1.05f, INT nMinNeighbors = 5, INT nMinPossibleFaceSize = 16);
 	MACHINEVISIONLIB_API INT *FaceDetect(Mat &matImg, FLOAT flScale = 1.05f, INT nMinNeighbors = 5, INT nMinPossibleFaceSize = 16);
 	MACHINEVISIONLIB_API void MarkFaceWithRectangle(Mat &matImg, INT *pnFaces);
+	MACHINEVISIONLIB_API void MarkFaceWithRectangle(Mat &matImg, FLOAT flScale = 1.05f, INT nMinNeighbors = 5, INT nMinPossibleFaceSize = 16);
 	MACHINEVISIONLIB_API void MarkFaceWithRectangle(const CHAR *pszImgName, FLOAT flScale = 1.05f, INT nMinNeighbors = 5, INT nMinPossibleFaceSize = 16);
 
 	MACHINEVISIONLIB_API Net InitFaceDetectDNNet(void);
