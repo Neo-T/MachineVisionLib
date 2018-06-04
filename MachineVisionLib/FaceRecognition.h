@@ -90,7 +90,7 @@ public:
 		stMemFilePersonName.hMem = INVALID_HANDLE_VALUE;	
 
 		pvideo = new VideoPredict(1.5, 5, 16);
-		cout << "1##################### " << pvideo << endl;
+		cout << "1#####################pvideo: " << pvideo << endl;
 		cin.get();
 	}
 

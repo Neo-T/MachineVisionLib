@@ -98,6 +98,9 @@ void cv2shell::CV2ShowVideo(DType dtVideoSrc, PCB_VIDEOHANDLER pfunNetVideoHandl
 	Mat mSrc;
 	VideoCapture video;
 
+	cout << "1.3#####################unInputParam: " << unInputParam << endl;
+	cin.get();
+
 	bool blIsNotOpen = TRUE;
 
 	while (TRUE)

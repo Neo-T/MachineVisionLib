@@ -94,12 +94,13 @@ void __PredictThroughVideoData(cv::Mat &mVideoData, UINT unInputParam)
 {
 	//cv2shell::MarkFaceWithRectangle(mVideoData);
 
-	cout << "1.3##################### " << unInputParam << endl;
+	cout << "1.4#####################unInputParam: " << unInputParam << endl;
 	FaceDatabase *pface_db = (FaceDatabase*)unInputParam;
-	cout << "1.4##################### " << pface_db << endl;
+	cout << "1.5#####################pface_db " << pface_db << endl;
 
 	string strPersonName;
-	cout << "2##################### " << pface_db->pvideo << endl;
+	cout << "2#####################pface_db->pvideo: " << pface_db->pvideo << endl;
+	cin.get();
 	DOUBLE dblSimilarity = pface_db->pvideo->Predict(mVideoData, strPersonName);
 	if (dblSimilarity > 0.85)
 	{
@@ -130,10 +131,11 @@ static void __VideoPredict(INT nCameraID)
 	}
 
 	FaceDatabase *pface_db = &face_db;
-	cout << "1.1##################### " << pface_db << endl;
-	cout << "1.2##################### " << pface_db->pvideo << endl;
+	cout << "1.1#####################pface_db: " << pface_db << " " << (UINT)&face_db << endl;
+	cout << "1.2#####################pface_db->pvideo: " << pface_db->pvideo << endl;
 
-	cv2shell::CV2ShowVideo(nCameraID, __PredictThroughVideoData, (UINT)&face_db);
+	//cv2shell::CV2ShowVideo(nCameraID, __PredictThroughVideoData, (UINT)&face_db);
+	cv2shell::CV2ShowVideo("C:\\OpenCV3.4\\opencv\\sources\\samples\\data\\Megamind.avi", __PredictThroughVideoData, (UINT)&face_db);
 }
 
 int _tmain(int argc, _TCHAR* argv[])
