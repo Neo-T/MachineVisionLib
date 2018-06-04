@@ -93,13 +93,10 @@ void cv2shell::CV2ShowVideo(DType dtVideoSrc)
 
 //* 同上，只是增加了回调处理函数
 template <typename DType>
-void cv2shell::CV2ShowVideo(DType dtVideoSrc, PCB_VIDEOHANDLER pfunNetVideoHandler, UINT unInputParam)
+void cv2shell::CV2ShowVideo(DType dtVideoSrc, PCB_VIDEOHANDLER pfunNetVideoHandler, DWORD64 dw64InputParam)
 {
 	Mat mSrc;
 	VideoCapture video;
-
-	cout << "1.3#####################unInputParam: " << unInputParam << endl;
-	cin.get();
 
 	bool blIsNotOpen = TRUE;
 
@@ -120,7 +117,7 @@ void cv2shell::CV2ShowVideo(DType dtVideoSrc, PCB_VIDEOHANDLER pfunNetVideoHandl
 		{
 			if (NULL != pfunNetVideoHandler)
 			{
-				pfunNetVideoHandler(mSrc, unInputParam);
+				pfunNetVideoHandler(mSrc, dw64InputParam);
 			}
 
 			if (waitKey(40) >= 0)

@@ -34,7 +34,7 @@
 #include <caffe/layers/softmax_layer.hpp>
 #endif
 
-#define NEED_GPU	0
+#define NEED_GPU	1
 
 using namespace cv;
 using namespace common_lib;
@@ -81,7 +81,7 @@ public:
 };
 
 //* 用于网络实时视频处理的回调函数原型声明
-typedef void (*PCB_VIDEOHANDLER)(Mat &mVideoData, UINT unInputParam);
+typedef void (*PCB_VIDEOHANDLER)(Mat &mVideoData, DWORD64 dw64InputParam);
 
 //* OpenCV接口
 namespace cv2shell {
@@ -97,9 +97,9 @@ namespace cv2shell {
 	template MACHINEVISIONLIB_API void CV2ShowVideo(const CHAR *pszNetURL);
 	template MACHINEVISIONLIB_API void CV2ShowVideo(INT nCameraIdx);
 
-	template <typename DType> void CV2ShowVideo(DType dtVideoSrc, PCB_VIDEOHANDLER pfunNetVideoHandler, UINT unInputParam);
-	template MACHINEVISIONLIB_API void CV2ShowVideo(const CHAR *pszNetURL, PCB_VIDEOHANDLER pfunNetVideoHandler, UINT unInputParam);
-	template MACHINEVISIONLIB_API void CV2ShowVideo(INT nCameraIdx, PCB_VIDEOHANDLER pfunNetVideoHandler, UINT unInputParam);
+	template <typename DType> void CV2ShowVideo(DType dtVideoSrc, PCB_VIDEOHANDLER pfunNetVideoHandler, DWORD64 dw64InputParam);
+	template MACHINEVISIONLIB_API void CV2ShowVideo(const CHAR *pszNetURL, PCB_VIDEOHANDLER pfunNetVideoHandler, DWORD64 dw64InputParam);
+	template MACHINEVISIONLIB_API void CV2ShowVideo(INT nCameraIdx, PCB_VIDEOHANDLER pfunNetVideoHandler, DWORD64 dw64InputParam);
 
 	MACHINEVISIONLIB_API void CV2CreateAlphaMat(Mat &mat);
 

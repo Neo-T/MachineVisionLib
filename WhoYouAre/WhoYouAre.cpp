@@ -90,24 +90,13 @@ static void __PicturePredict(const CHAR *pszFaceImgFile)
 	cout << "Stop find." << endl;
 }
 
-void __PredictThroughVideoData(cv::Mat &mVideoData, UINT unInputParam)
+void __PredictThroughVideoData(cv::Mat &mVideoData, DWORD64 dw64InputParam)
 {
 	//cv2shell::MarkFaceWithRectangle(mVideoData);
 
-	cout << "1.4#####################unInputParam: " << unInputParam << endl;
-	FaceDatabase *pface_db = (FaceDatabase*)unInputParam;
-	cout << "1.5#####################pface_db " << pface_db << endl;
-
-	string strPersonName;
-	cout << "2#####################pface_db->pvideo: " << pface_db->pvideo << endl;
-	cin.get();
-	DOUBLE dblSimilarity = pface_db->pvideo->Predict(mVideoData, strPersonName);
-	if (dblSimilarity > 0.85)
-	{
-		cout << "Found a matched face: ¡º" << strPersonName << "¡», the similarity is " << dblSimilarity << endl;
-	}
-	else
-		cout << "Not found matched face." << endl;
+	FaceDatabase *pface_db = (FaceDatabase*)dw64InputParam;
+	
+	pface_db->pvideo_predict->Predict(mVideoData);
 
 	imshow("Camera video", mVideoData);
 }
@@ -116,6 +105,7 @@ void __PredictThroughVideoData(cv::Mat &mVideoData, UINT unInputParam)
 static void __VideoPredict(INT nCameraID)
 {
 	FaceDatabase face_db;
+	face_db.pvideo_predict = new FaceDatabase::VideoPredict(&face_db);
 
 	if (!face_db.LoadFaceData())
 	{
@@ -130,12 +120,7 @@ static void __VideoPredict(INT nCameraID)
 		return;
 	}
 
-	FaceDatabase *pface_db = &face_db;
-	cout << "1.1#####################pface_db: " << pface_db << " " << (UINT)&face_db << endl;
-	cout << "1.2#####################pface_db->pvideo: " << pface_db->pvideo << endl;
-
-	//cv2shell::CV2ShowVideo(nCameraID, __PredictThroughVideoData, (UINT)&face_db);
-	cv2shell::CV2ShowVideo("C:\\OpenCV3.4\\opencv\\sources\\samples\\data\\Megamind.avi", __PredictThroughVideoData, (UINT)&face_db);
+	cv2shell::CV2ShowVideo(nCameraID, __PredictThroughVideoData, (DWORD64)&face_db);
 }
 
 int _tmain(int argc, _TCHAR* argv[])

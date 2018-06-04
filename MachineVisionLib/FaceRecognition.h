@@ -31,47 +31,17 @@ namespace caffe
 #define FACE_DATA_FILE_NAME		"NEO-FACEFEATURE-DATA.DAT"	//* 加载人脸特征数据到内存时，内存文件的名称
 #define PERSON_NAME_FILE_NAME	"NEO-PERSON-NAME.TXT"		//* 加载人名数据到内存时，内存文件的名称
 
+//* 识别出的人名、可信度等信息保存到该结构体中
+typedef struct _ST_PERSON_ {
+	string strPersonName;	//* 人名
+	DOUBLE dblConfidence;	//* 可信度
+} ST_PERSON, *PST_PERSON;
+
 //* 人脸数据库统计信息
 typedef struct _ST_FACE_DB_STATIS_INFO_ {
 	INT nPersonNum;				//* 人数
 	INT nTotalLenOfPersonName;	//* 所有人名的总长度
 } ST_FACE_DB_STATIS_INFO, *PST_FACE_DB_STATIS_INFO;
-
-class FACERECOGNITION_API VideoPredict {
-public:
-	VideoPredict(FLOAT flInputScale = 1.05f, INT nInputMinNeighbors = 5, INT nInputMinPossibleFaceSize = 16) {
-		pubFeaceDetectResultBuf = (UCHAR*)malloc(LIBFACEDETECT_BUFFER_SIZE);
-		if (!pubFeaceDetectResultBuf)
-		{
-			perror(NULL);
-			cout << "error para in " << __FUNCTION__ << "(), in file " << __FILE__ << ", line " << __LINE__ - 4 << ", malloc error code:" << GetLastError() << endl;
-
-			exit(-1);
-		}
-
-		flScale = flInputScale;
-		nMinNeighbors = nInputMinNeighbors;
-		nMinPossibleFaceSize = nInputMinPossibleFaceSize;
-
-		printf(">>>>>>>>>>>>>>>>>>%08X, %llf, %d, %d\r\n", (UINT)pubFeaceDetectResultBuf, flScale, nMinNeighbors, nMinPossibleFaceSize);
-
-		cout << ">>>>>>>>>>>>>>>>>>>>" << flScale << " " << nMinNeighbors << " " << nMinPossibleFaceSize << endl;
-		cin.get();
-	}
-
-	~VideoPredict() {
-		if (pubFeaceDetectResultBuf)
-			free(pubFeaceDetectResultBuf);
-	}
-
-	DOUBLE Predict(Mat& matVideoImg, string& strPersonName, FLOAT flConfidenceThreshold = 0.80, FLOAT flStopPredictThreshold = 0.95);
-
-private:
-	UCHAR *pubFeaceDetectResultBuf;
-	FLOAT flScale;
-	INT nMinNeighbors;
-	INT nMinPossibleFaceSize;
-};
 
 //* 人脸数据库类
 class FACERECOGNITION_API FaceDatabase {
@@ -87,16 +57,17 @@ public:
 		stMemFileFaceData.hMem = INVALID_HANDLE_VALUE;
 
 		stMemFilePersonName.pvMem = NULL;
-		stMemFilePersonName.hMem = INVALID_HANDLE_VALUE;	
+		stMemFilePersonName.hMem = INVALID_HANDLE_VALUE;
 
-		pvideo = new VideoPredict(1.5, 5, 16);
-		cout << "1#####################pvideo: " << pvideo << endl;
-		cin.get();
+		pvideo_predict = NULL;
 	}
 
 	~FaceDatabase() {	
 		common_lib::DeletMemFile(&stMemFileFaceData);
 		common_lib::DeletMemFile(&stMemFilePersonName);
+
+		if (pvideo_predict)
+			delete pvideo_predict;
 	}
 
 	BOOL LoadCaffeVGGNet(string strCaffePrototxtFile, string strCaffeModelFile);
@@ -108,23 +79,58 @@ public:
 	void GetFaceDBStatisInfo(PST_FACE_DB_STATIS_INFO pstInfo);
 	BOOL LoadFaceData(void);
 
+	Mat FaceChipsHandle(Mat& matFaceChips, DOUBLE dblPowerValue = 0.1, DOUBLE dblGamma = 0.8, DOUBLE dblNorm = 10);
+
 	DOUBLE Predict(Mat& matImg, string& strPersonName, FLOAT flConfidenceThreshold = 0.55, FLOAT flStopPredictThreshold = 0.95);
 	DOUBLE Predict(const CHAR *pszImgName, string& strPersonName, FLOAT flConfidenceThreshold = 0.55, FLOAT flStopPredictThreshold = 0.95);
 
-	VideoPredict *pvideo;
+	class FACERECOGNITION_API VideoPredict {
+	public:
+		VideoPredict(FaceDatabase *pinput_face_db, FLOAT flInputScale = 1.05f, INT nInputMinNeighbors = 5, INT nInputMinPossibleFaceSize = 16) {
+			pubFeaceDetectResultBuf = (UCHAR*)malloc(LIBFACEDETECT_BUFFER_SIZE);
+			if (!pubFeaceDetectResultBuf)
+			{
+				perror(NULL);
+				cout << "error para in " << __FUNCTION__ << "(), in file " << __FILE__ << ", line " << __LINE__ - 4 << ", malloc error code:" << GetLastError() << endl;
+
+				exit(-1);
+			}
+
+			flScale = flInputScale;
+			nMinNeighbors = nInputMinNeighbors;
+			nMinPossibleFaceSize = nInputMinPossibleFaceSize;
+
+			pface_db = pinput_face_db;
+		}
+
+		~VideoPredict() {
+			if (pubFeaceDetectResultBuf)
+				free(pubFeaceDetectResultBuf);
+
+			cout << "The memory allocated for the libfacedetecion library has been released." << endl;
+		}
+
+		vector<ST_PERSON> Predict(Mat& matVideoImg, FLOAT flConfidenceThreshold = 0.80, FLOAT flStopPredictThreshold = 0.95);
+
+	private:
+		UCHAR *pubFeaceDetectResultBuf;
+		FLOAT flScale;
+		INT nMinNeighbors;
+		INT nMinPossibleFaceSize;
+		FaceDatabase *pface_db;
+	} *pvideo_predict;
 
 	caffe::Net<FLOAT> *pcaflNet;
 	caffe::MemoryDataLayer<FLOAT> *pflMemDataLayer;
 
-private:
-	//* 提取脸部图像，注意只能提取一张脸部图像
-	Mat ExtractFaceChips(Mat& matImg, FLOAT flScale = 1.05f, INT nMinNeighbors = 5, INT nMinPossibleFaceSize = 16);
-	Mat ExtractFaceChips(const CHAR *pszImgName, FLOAT flScale = 1.05f, INT nMinNeighbors = 5, INT nMinPossibleFaceSize = 16);
-	Mat FaceChipsHandle(Mat& matFaceChips, DOUBLE dblPowerValue = 0.1, DOUBLE dblGamma = 0.8, DOUBLE dblNorm = 10);	
-	void UpdateFaceDBStatisticFile(const string& strPersonName);
-	void PutFaceToMemFile(void);
-
 	ST_MEM_FILE stMemFileFaceData;
 	ST_MEM_FILE stMemFilePersonName;
 	INT nActualNumOfPerson;
+
+private:
+	//* 提取脸部图像，注意只能提取一张脸部图像
+	Mat ExtractFaceChips(Mat& matImg, FLOAT flScale = 1.05f, INT nMinNeighbors = 5, INT nMinPossibleFaceSize = 16);
+	Mat ExtractFaceChips(const CHAR *pszImgName, FLOAT flScale = 1.05f, INT nMinNeighbors = 5, INT nMinPossibleFaceSize = 16);	
+	void UpdateFaceDBStatisticFile(const string& strPersonName);
+	void PutFaceToMemFile(void);
 };
