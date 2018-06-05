@@ -477,7 +477,8 @@ BOOL FaceDatabase::LoadFaceData(void)
 }
 
 //* 完成实际的预测
-static DOUBLE __Predict(FaceDatabase *pface_db, Mat& matFaceChips, string& strPersonName, FLOAT flConfidenceThreshold, FLOAT flStopPredictThreshold)
+static DOUBLE __Predict(FaceDatabase *pface_db, Mat& matFaceChips, string& strPersonName, 
+							FLOAT flConfidenceThreshold, FLOAT flStopPredictThreshold)
 {
 	//* ROI(region of interest)，按照一定算法(比如amma校正、滤波、归一化等处理)将脸部区域转换为caffe网络特征提取需要的输入数据
 	Mat matFaceROI = pface_db->FaceChipsHandle(matFaceChips);
@@ -508,7 +509,7 @@ static DOUBLE __Predict(FaceDatabase *pface_db, Mat& matFaceChips, string& strPe
 			pszMatchPersonName = pszPerson;
 		}
 
-		cout << pszPerson << ":" << dblSimilarity << endl;
+		//cout << pszPerson << ":" << dblSimilarity << endl;
 
 		//* 下一个
 		pszPerson += strlen(pszPerson) + 1;
@@ -584,32 +585,48 @@ vector<ST_PERSON> FaceDatabase::VideoPredict::Predict(Mat& matVideoImg, FLOAT fl
 		INT nWidth = psScalar[2];
 		INT nHeight = psScalar[3];		
 
+		//* 矩形框出人脸
+		Point left(x, y);
+		Point right(x + nWidth, y + nHeight);
+		rectangle(matVideoImg, left, right, Scalar(230, 255, 0), 1);
+
 		Mat matFaceChips;
 		__ExtractFaceFeatureChips(matGray, psScalar, matFaceChips);
 
-		ST_PERSON stPerson;
+		//* 预测并标记
+		INT nBaseLine = 0;
 		String strPersonLabel;
+		string strConfidenceLabel;
+		Rect rect;		
+		ST_PERSON stPerson;
 		stPerson.dblConfidence = __Predict(pface_db, matFaceChips, stPerson.strPersonName, flConfidenceThreshold, flStopPredictThreshold);
 		if (stPerson.dblConfidence > flConfidenceThreshold)
 		{
 			vPersons.push_back(stPerson);
 
-			//* 标出人名
-			strPersonLabel = "Name: " + stPerson.strPersonName + " Confidence: " + static_cast<ostringstream*>(&(ostringstream() << stPerson.dblConfidence))->str();
+			//* 标出人名和可信度
+			strPersonLabel = "Name: " + stPerson.strPersonName;
+			strConfidenceLabel = "Confidence: " + static_cast<ostringstream*>(&(ostringstream() << stPerson.dblConfidence))->str();
+			
+			Size personLabelSize = getTextSize(strPersonLabel, FONT_HERSHEY_SIMPLEX, 0.5, 1, &nBaseLine);
+			Size confidenceLabelSize = getTextSize(strConfidenceLabel, FONT_HERSHEY_SIMPLEX, 0.5, 1, &nBaseLine);
+			rect = Rect(Point(x, y - (personLabelSize.height + confidenceLabelSize.height + 3)), 
+							Size(personLabelSize.width > confidenceLabelSize.width ? personLabelSize.width : confidenceLabelSize.width, 
+								personLabelSize.height + confidenceLabelSize.height + nBaseLine + 3));
+			rectangle(matVideoImg, rect, Scalar(255, 255, 255), CV_FILLED);
+			putText(matVideoImg, strPersonLabel, Point(x, y - confidenceLabelSize.height - 3), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(107, 194, 53));
+			putText(matVideoImg, strConfidenceLabel, Point(x, y), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(107, 194, 53));
 		}
 		else
+		{
 			strPersonLabel = "No matching face was found";
 
-		//* 注意，这里的x,y坐标指的是左下角的，不是左上角的
-		Point left(x, y);
-		Point right(x + nWidth, y + nHeight);
-		rectangle(matVideoImg, left, right, Scalar(230, 255, 0), 1);
+			Size personLabelSize = getTextSize(strPersonLabel, FONT_HERSHEY_SIMPLEX, 0.5, 1, &nBaseLine);
+			rect = Rect(Point(x, y - personLabelSize.height), Size(personLabelSize.width, personLabelSize.height + nBaseLine));
 
-		INT nBaseLine = 0;
-		Size labelSize = getTextSize(strPersonLabel, FONT_HERSHEY_SIMPLEX, 0.5, 1, &nBaseLine);
-		rectangle(matVideoImg, Rect(Point(x, y - labelSize.height),
-					Size(labelSize.width, labelSize.height + nBaseLine)), Scalar(255, 255, 255), CV_FILLED);
-		putText(matVideoImg, strPersonLabel, Point(x, y), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(107, 194, 53));
+			rectangle(matVideoImg, rect, Scalar(255, 255, 255), CV_FILLED);
+			putText(matVideoImg, strPersonLabel, Point(x, y), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(107, 194, 53));
+		}
 	}
 
 	return vPersons;

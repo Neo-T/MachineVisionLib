@@ -120,7 +120,7 @@ void cv2shell::CV2ShowVideo(DType dtVideoSrc, PCB_VIDEOHANDLER pfunNetVideoHandl
 				pfunNetVideoHandler(mSrc, dw64InputParam);
 			}
 
-			if (waitKey(40) >= 0)
+			if (waitKey(1) >= 0)
 				break;
 		}
 		else

@@ -92,8 +92,6 @@ static void __PicturePredict(const CHAR *pszFaceImgFile)
 
 void __PredictThroughVideoData(cv::Mat &mVideoData, DWORD64 dw64InputParam)
 {
-	//cv2shell::MarkFaceWithRectangle(mVideoData);
-
 	FaceDatabase *pface_db = (FaceDatabase*)dw64InputParam;
 	
 	pface_db->pvideo_predict->Predict(mVideoData);
@@ -101,8 +99,9 @@ void __PredictThroughVideoData(cv::Mat &mVideoData, DWORD64 dw64InputParam)
 	imshow("Camera video", mVideoData);
 }
 
-//* 通过实时视频预测
-static void __VideoPredict(INT nCameraID)
+//* 通过摄像头或视频预测
+template <typename DType>
+static void __VideoPredict(DType dtVideoSrc)
 {
 	FaceDatabase face_db;
 	face_db.pvideo_predict = new FaceDatabase::VideoPredict(&face_db);
@@ -120,7 +119,7 @@ static void __VideoPredict(INT nCameraID)
 		return;
 	}
 
-	cv2shell::CV2ShowVideo(nCameraID, __PredictThroughVideoData, (DWORD64)&face_db);
+	cv2shell::CV2ShowVideo(dtVideoSrc, __PredictThroughVideoData, (DWORD64)&face_db);	
 }
 
 int _tmain(int argc, _TCHAR* argv[])
@@ -129,7 +128,8 @@ int _tmain(int argc, _TCHAR* argv[])
 	{
 		cout << "Usage: " << endl << argv[0] << " add [Img Path] [Person Name]" << endl;
 		cout << argv[0] << " predict [Img Path]" << endl;
-		cout << argv[0] << " video [camera number, If not specified, the default value is 0]" << endl;
+		cout << argv[0] << " camera [camera number, If not specified, the default value is 0]" << endl;
+		cout << argv[0] << " video [video file path]" << endl;
 
 		return -1;
 	}
@@ -137,26 +137,40 @@ int _tmain(int argc, _TCHAR* argv[])
 	String strOptType(argv[1]);
 	if (String("add") == strOptType.toLowerCase())
 	{
-		return __AddFace(argv[2], argv[3]);		
+		return __AddFace(argv[2], argv[3]);
 	}
 	else if (string("predict") == strOptType.toLowerCase())
 	{
-		__PicturePredict(argv[2]);		
+		__PicturePredict(argv[2]);
 	}
-	else if (string("video") == strOptType.toLowerCase())
+	else if (string("camera") == strOptType.toLowerCase())
 	{
 		INT nCameraID = 0;
-		if(argc == 3)
+		if (argc == 3)
 			nCameraID = atoi(argv[2]);
 
 		__VideoPredict(nCameraID);
 	}
-	else
+	else if (string("video") == strOptType.toLowerCase())
 	{
-		cout << "Usage: " << endl << argv[0] << " add [Img Path] [Person Name]" << endl;
-		cout << argv[0] << " predict [Img Path]" << endl;
-		cout << argv[0] << " video [camera number, If not specified, the default value is 0]" << endl;
+		if(argc != 3)
+			goto __lblUsage;
+
+		CHAR szVideoFile[MAX_PATH];
+		sprintf_s(szVideoFile, "%s", argv[2]);
+
+		__VideoPredict((const CHAR*)szVideoFile);
 	}
+	else
+		goto __lblUsage;
+
+	return 0;
+
+__lblUsage:	
+	cout << "Usage: " << endl << argv[0] << " add [Img Path] [Person Name]" << endl;
+	cout << argv[0] << " predict [Img Path]" << endl;
+	cout << argv[0] << " video [camera number, If not specified, the default value is 0]" << endl;
+	cout << argv[0] << " video [video file path]" << endl;
 
     return 0;
 }
