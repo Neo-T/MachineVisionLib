@@ -34,7 +34,7 @@
 #include <caffe/layers/softmax_layer.hpp>
 #endif
 
-#define NEED_GPU	1
+#define NEED_GPU	0
 
 using namespace cv;
 using namespace common_lib;
@@ -143,8 +143,6 @@ namespace cv2shell {
 	MACHINEVISIONLIB_API void MarkObjectWithRectangle(const CHAR *pszImgName, Net &dnnNet, vector<string> &vClassNames, const Size &size, FLOAT flConfidenceThreshold = 0.4, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 117.0, 123.0));
 	MACHINEVISIONLIB_API void MarkObjectWithRectangle(const CHAR *pszImgName, Net &dnnNet, vector<string> &vClassNames, FLOAT flConfidenceThreshold = 0.4, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUILATERAL, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 117.0, 123.0));
 	MACHINEVISIONLIB_API INT GetObjectNum(vector<RecogCategory> &vObjects, string strObjectName, FLOAT *pflConfidenceOfExist, FLOAT *pflConfidenceOfObjectNum);
-	
-	MACHINEVISIONLIB_API DOUBLE CosineSimilarity(const FLOAT *pflaBaseData, const FLOAT *pflaTargetData, UINT unDimension);
 };
 
 //* caffe½Ó¿Ú

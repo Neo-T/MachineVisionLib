@@ -30,6 +30,12 @@
     <ClInclude Include="FaceRecognition.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="ImagePreprocess.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="MathAlgorithmLib.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -42,6 +48,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FaceRecognition.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="ImagePreprocess.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="MathAlgorithmLib.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

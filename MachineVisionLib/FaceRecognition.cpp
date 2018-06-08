@@ -12,6 +12,7 @@
 #include <facedetect-dll.h>
 #include "common_lib.h"
 #include "MachineVisionLib.h"
+#include "MathAlgorithmLib.h"
 #include "FaceRecognition.h"
 
 BOOL FaceDatabase::LoadCaffeVGGNet(string strCaffePrototxtFile, string strCaffeModelFile)
@@ -480,7 +481,7 @@ BOOL FaceDatabase::LoadFaceData(void)
 static DOUBLE __Predict(FaceDatabase *pface_db, Mat& matFaceChips, string& strPersonName, 
 							FLOAT flConfidenceThreshold, FLOAT flStopPredictThreshold)
 {
-	//* ROI(region of interest)，按照一定算法(比如amma校正、滤波、归一化等处理)将脸部区域转换为caffe网络特征提取需要的输入数据
+	//* ROI(region of interest)，按照一定算法(比如gamma校正、滤波、归一化等处理)将脸部区域转换为caffe网络特征提取需要的输入数据
 	Mat matFaceROI = pface_db->FaceChipsHandle(matFaceChips);
 
 	//* 通过caffe网络提取图像特征
@@ -494,7 +495,7 @@ static DOUBLE __Predict(FaceDatabase *pface_db, Mat& matFaceChips, string& strPe
 	const CHAR *pszMatchPersonName = NULL;
 	for (INT i = 0; i < pface_db->nActualNumOfPerson; i++)
 	{
-		dblSimilarity = cv2shell::CosineSimilarity(pflaData + i * FACE_FEATURE_DIMENSION, flaFaceFeature, FACE_FEATURE_DIMENSION);
+		dblSimilarity = malib::CosineSimilarity(pflaData + i * FACE_FEATURE_DIMENSION, flaFaceFeature, FACE_FEATURE_DIMENSION);
 		if (dblSimilarity > dblMaxSimilarity)
 		{
 			//* 大于停止查找的阈值，基本就可以确定是这个人了，所以不再查找了
