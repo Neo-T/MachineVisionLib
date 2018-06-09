@@ -13,6 +13,7 @@
 #include "common_lib.h"
 #include "MachineVisionLib.h"
 #include "MathAlgorithmLib.h"
+#include "ImagePreprocess.h"
 #include "FaceRecognition.h"
 
 BOOL FaceDatabase::LoadCaffeVGGNet(string strCaffePrototxtFile, string strCaffeModelFile)
@@ -117,129 +118,19 @@ Mat FaceDatabase::ExtractFaceChips(const CHAR *pszImgName, FLOAT flScale, INT nM
 	return ExtractFaceChips(matImg, flScale, nMinNeighbors, nMinPossibleFaceSize);
 }
 
-//* 理论及公式，参见：
+//* 针对光照、采集设备设备变化等问题，我们针对人脸使用了结合gamma校正、差分高斯滤波(DoG)、对比度均衡化三种技术的光照预处理算法，理论及公式参见：
 //* https://blog.csdn.net/wuzuyu365/article/details/51898714
-//* 关于伽玛校正的理论资料：
-//* https://blog.csdn.net/w450468524/article/details/51649651
-//* 关于滤波核模板：
-//* http://blog.sina.com.cn/s/blog_6ac784290101e47s.html
 Mat FaceDatabase::FaceChipsHandle(Mat& matFaceChips, DOUBLE dblPowerValue, DOUBLE dblGamma, DOUBLE dblNorm)
 {
-	FLOAT *pflData;
+	Mat matDstChips;
 
-	//* 矩阵数据转成浮点类型
-	Mat matFloat;
-	matFaceChips.convertTo(matFloat, CV_32F);
-		
-	Mat matTransit(Size(matFloat.cols, matFloat.rows), CV_32F, Scalar(0));	//* 计算用的过渡矩阵
-	
-	//* 不允许gamma值为0，也就是强制提升阴影区域的对比度
-	if (fabs(dblGamma) < 1e-6)
-		dblGamma = 0.2;
-	for (INT i = 0; i < matFloat.rows; i++)
-	{
-		for (INT j = 0; j < matFloat.cols; j++)
-			matFloat.ptr<FLOAT>(i)[j] = pow(matFloat.ptr<FLOAT>(i)[j], dblGamma);		
-	}
-	
 	//* 高通滤波核，对比测试结果，目前这个核最好：
 	//* 0.85-0.86 0.88-0.87 0.88-0.85 0.78-0.75
-	FLOAT flaHighFilterKernel[9] = {-1, -1, -1, -1, 9, -1, -1, -1, -1}; 	
-	Mat matFilterKernel = Mat(3, 3, CV_32FC1, flaHighFilterKernel);	
-	filter2D(matFloat, matFloat, matFloat.depth(), matFilterKernel);
-
-	//* 如果为0.0则直接跳到最后一步
-	DOUBLE dblTrim = fabs(dblNorm);
-	if (dblTrim < 1e-6)
-		goto __lblEnd;
-	
-	//* matFloat矩阵指数运算并计算均指
-	DOUBLE dblMeanVal = 0.0;
-	matTransit = cv::abs(matFloat);
-	for (INT i = 0; i<matFloat.rows; i++)
-	{
-		pflData = matTransit.ptr<FLOAT>(i);
-		for (INT j = 0; j < matFloat.cols; j++)
-		{
-			pflData[j] = pow(matTransit.ptr<FLOAT>(i)[j], dblPowerValue);
-			dblMeanVal += pflData[j];
-		}
-	}
-	dblMeanVal /= (matFloat.rows * matFloat.cols);
-
-	//* 求得的均值指数运算后与矩阵相除
-	DOUBLE dblDivisor = cv::pow(dblMeanVal, 1/ dblPowerValue);
-	for (INT i = 0; i < matFloat.rows; i++)
-	{
-		pflData = matFloat.ptr<FLOAT>(i);
-		for (INT j = 0; j<matFloat.cols; j++)
-			pflData[j] /= dblDivisor;
-	}
-
-	//* 减去超标的数值，然后再一次求均值
-	dblMeanVal = 0.0;
-	matTransit = cv::abs(matFloat);
-	for (INT i = 0; i<matFloat.rows; i++)
-	{
-		pflData = matTransit.ptr<FLOAT>(i);
-		for (INT j = 0; j < matFloat.cols; j++)
-		{
-			if (pflData[j] > dblTrim)
-				pflData[j] = dblTrim;
-
-			pflData[j] = pow(pflData[j], dblPowerValue);
-			dblMeanVal += pflData[j];
-		}
-	}
-	dblMeanVal /= (matFloat.rows * matFloat.cols);
-
-	//* 再一次将均值进行指数计算后与矩阵相除
-	dblDivisor = cv::pow(dblMeanVal, 1 / dblPowerValue);
-	for (INT i = 0; i < matFloat.rows; i++)
-	{
-		pflData = matFloat.ptr<FLOAT>(i);
-		for (INT j = 0; j<matFloat.cols; j++)
-			pflData[j] /= dblDivisor;
-	}
-
-	//* 如果大于0.0
-	if(dblNorm > 1e-6)
-	{ 
-		for (INT i = 0; i<matFloat.rows; i++)
-		{
-			pflData = matFloat.ptr<FLOAT>(i);
-			for (INT j = 0; j<matFloat.cols; j++)
-				pflData[j] = dblTrim * tanh(pflData[j] / dblTrim);
-		}
-	}
-
-__lblEnd:
-	//* 找出矩阵的最小值
-	FLOAT flMin = matFloat.ptr<FLOAT>(0)[0];
-	for (INT i = 0; i <matFloat.rows; i++)
-	{
-		pflData = matFloat.ptr<FLOAT>(i);
-		for (INT j = 0; j < matFloat.cols; j++)
-		{
-			if (pflData[j] < flMin)
-				flMin = pflData[j];
-		}
-	}
-
-	//* 矩阵加最小值
-	for (INT i = 0; i <matFloat.rows; i++)
-	{
-		pflData = matFloat.ptr<FLOAT>(i);
-		for (INT j = 0; j < matFloat.cols; j++)	
-				pflData[j] += flMin;
-	}
-
-	//* 归一化
-	normalize(matFloat, matFloat, 0, 255, NORM_MINMAX);
-	matFloat.convertTo(matFloat, CV_8UC1);
+	FLOAT flaHighFilterKernel[9] = { -1, -1, -1, -1, 9, -1, -1, -1, -1 };
+	imgpreproc::ContrastEqualizationWithFilter(matFaceChips, matDstChips, Size(3, 3), flaHighFilterKernel, dblGamma, dblPowerValue, dblNorm);
 
 	//* 进入caffe提取特征之前，必须为RGB格式才可，否则caffe会报错
-	cvtColor(matFloat, matFloat, CV_GRAY2RGB);
+	cvtColor(matDstChips, matDstChips, CV_GRAY2RGB);
 
 	//imshow("FaceChipsHandle", matFloat);
 	//waitKey(600);
@@ -249,7 +140,7 @@ __lblEnd:
 	//fs << "MAT-DATA" << matFloat;	
 	//fs.release();
 
-	return matFloat;
+	return matDstChips;
 }
 
 //* 看看该人是否已经添加到数据库中，避免重复添加

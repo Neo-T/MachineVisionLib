@@ -101,7 +101,7 @@ void __PredictThroughVideoData(cv::Mat &mVideoData, DWORD64 dw64InputParam)
 
 //* 通过摄像头或视频预测
 template <typename DType>
-static void __VideoPredict(DType dtVideoSrc)
+static void __VideoPredict(DType dtVideoSrc, BOOL blIsNeedToReplay)
 {
 	FaceDatabase face_db;
 	face_db.pvideo_predict = new FaceDatabase::VideoPredict(&face_db);
@@ -119,7 +119,7 @@ static void __VideoPredict(DType dtVideoSrc)
 		return;
 	}
 
-	cv2shell::CV2ShowVideo(dtVideoSrc, __PredictThroughVideoData, (DWORD64)&face_db);	
+	cv2shell::CV2ShowVideo(dtVideoSrc, __PredictThroughVideoData, (DWORD64)&face_db, blIsNeedToReplay);
 }
 
 int _tmain(int argc, _TCHAR* argv[])
@@ -149,7 +149,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		if (argc == 3)
 			nCameraID = atoi(argv[2]);
 
-		__VideoPredict(nCameraID);
+		__VideoPredict(nCameraID, TRUE);
 	}
 	else if (string("video") == strOptType.toLowerCase())
 	{
@@ -159,7 +159,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		CHAR szVideoFile[MAX_PATH];
 		sprintf_s(szVideoFile, "%s", argv[2]);
 
-		__VideoPredict((const CHAR*)szVideoFile);
+		__VideoPredict((const CHAR*)szVideoFile, FALSE);
 	}
 	else
 		goto __lblUsage;

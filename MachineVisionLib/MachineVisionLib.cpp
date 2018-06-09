@@ -1,6 +1,5 @@
 // MachineVisionLib.cpp : 定义 DLL 应用程序的导出函数。
 //
-
 #include "stdafx.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -21,7 +20,7 @@
 #endif
 
 //* 执行Canny边缘检测
-MACHINEVISIONLIB_API void cv2shell::CV2Canny(Mat &matSrc, Mat &matOut)
+MACHINEVISIONLIB void cv2shell::CV2Canny(Mat &matSrc, Mat &matOut)
 {
 	Mat matGray, matBlur;
 
@@ -36,7 +35,7 @@ MACHINEVISIONLIB_API void cv2shell::CV2Canny(Mat &matSrc, Mat &matOut)
 }
 
 //* 执行Canny边缘检测
-MACHINEVISIONLIB_API void cv2shell::CV2Canny(const CHAR *pszImgName, Mat &matOut)
+MACHINEVISIONLIB void cv2shell::CV2Canny(const CHAR *pszImgName, Mat &matOut)
 {
 	Mat matImg = imread(pszImgName);
 	if (!matImg.empty())
@@ -47,8 +46,9 @@ MACHINEVISIONLIB_API void cv2shell::CV2Canny(const CHAR *pszImgName, Mat &matOut
 
 //* 既可以播放一段rtsp视频流、video文件还可以播放本地摄像头拍摄的实时视频，比如传入如下字符串作为参数：
 //* rtsp://admin:abcd1234@192.168.0.250/mjpeg/ch1，指定播放网络摄像头拍摄的rtsp实时视频流
+//* 参数blIsNeedToReplay用于指定播放意外终止比如网络中断时，是否尝试重新连接并继续播放，对于视频文件来说则是是否循环播放
 template <typename DType>
-void cv2shell::CV2ShowVideo(DType dtVideoSrc)
+void cv2shell::CV2ShowVideo(DType dtVideoSrc, BOOL blIsNeedToReplay)
 {
 	Mat mSrc;
 	VideoCapture video;
@@ -84,6 +84,12 @@ void cv2shell::CV2ShowVideo(DType dtVideoSrc)
 		}
 		else
 		{
+			if (!blIsNeedToReplay)
+			{
+				video.release();
+				return;
+			}
+
 			blIsNotOpen = TRUE;
 			video.release();
 			continue;
@@ -93,7 +99,7 @@ void cv2shell::CV2ShowVideo(DType dtVideoSrc)
 
 //* 同上，只是增加了回调处理函数
 template <typename DType>
-void cv2shell::CV2ShowVideo(DType dtVideoSrc, PCB_VIDEOHANDLER pfunNetVideoHandler, DWORD64 dw64InputParam)
+void cv2shell::CV2ShowVideo(DType dtVideoSrc, PCB_VIDEOHANDLER pfunNetVideoHandler, DWORD64 dw64InputParam, BOOL blIsNeedToReplay)
 {
 	Mat mSrc;
 	VideoCapture video;
@@ -125,6 +131,12 @@ void cv2shell::CV2ShowVideo(DType dtVideoSrc, PCB_VIDEOHANDLER pfunNetVideoHandl
 		}
 		else
 		{
+			if (!blIsNeedToReplay)
+			{
+				video.release();
+				return;
+			}
+
 			blIsNotOpen = TRUE;
 			video.release();
 			continue;
@@ -150,7 +162,7 @@ waitKey(0);
 cout << "图像转换成PNG格式出错，错误原因：" << ex.what() << endl;
 }
 */
-MACHINEVISIONLIB_API void cv2shell::CV2CreateAlphaMat(Mat &mat)
+MACHINEVISIONLIB void cv2shell::CV2CreateAlphaMat(Mat &mat)
 {
 	INT i, j;
 
@@ -168,7 +180,7 @@ MACHINEVISIONLIB_API void cv2shell::CV2CreateAlphaMat(Mat &mat)
 }
 
 //* 均值Hash算法
-MACHINEVISIONLIB_API string cv2shell::CV2HashValue(Mat &matSrc, PST_IMG_RESIZE pstResize)
+MACHINEVISIONLIB string cv2shell::CV2HashValue(Mat &matSrc, PST_IMG_RESIZE pstResize)
 {
 	string strValues(pstResize->nRows * pstResize->nCols, '\0');
 
@@ -224,7 +236,7 @@ MACHINEVISIONLIB_API string cv2shell::CV2HashValue(Mat &matSrc, PST_IMG_RESIZE p
 }
 
 //* 上一个CV2HashValue函数的重载函数
-MACHINEVISIONLIB_API string cv2shell::CV2HashValue(const CHAR *pszImgName, PST_IMG_RESIZE pstResize)
+MACHINEVISIONLIB string cv2shell::CV2HashValue(const CHAR *pszImgName, PST_IMG_RESIZE pstResize)
 {
 	string strDuff;
 
@@ -252,7 +264,7 @@ static void __GetResizeValue(PST_IMG_RESIZE pstResize)
 }
 
 //* 根据哈希计算的要求，需要将图片缩小以去除图片细节，该函数将计算按比例缩小至不能被8整出的最小图片尺寸
-MACHINEVISIONLIB_API ST_IMG_RESIZE cv2shell::CV2GetResizeValue(Mat &matImg)
+MACHINEVISIONLIB ST_IMG_RESIZE cv2shell::CV2GetResizeValue(Mat &matImg)
 {
 	ST_IMG_RESIZE stSize;
 
@@ -265,7 +277,7 @@ MACHINEVISIONLIB_API ST_IMG_RESIZE cv2shell::CV2GetResizeValue(Mat &matImg)
 }
 
 //* 按照指定尺寸调整等比例调整图像大小，对于长宽不一致但要求调整为长宽一致的图片，函数会为短边不上单一像素的边以使其等长
-MACHINEVISIONLIB_API void cv2shell::ImgEquilateral(Mat &matImg, Mat &matResizeImg, INT nResizeLen, const Scalar &border_color)
+MACHINEVISIONLIB void cv2shell::ImgEquilateral(Mat &matImg, Mat &matResizeImg, INT nResizeLen, const Scalar &border_color)
 {
 	INT nTop = 0, nBottom = 0, nLeft = 0, nRight = 0, nDifference;
 	Mat matBorderImg;
@@ -298,7 +310,7 @@ MACHINEVISIONLIB_API void cv2shell::ImgEquilateral(Mat &matImg, Mat &matResizeIm
 }
 
 //* 将图片尺寸调整为等边图片，其实就是短边填充指定颜色的像素使其与长边等长
-MACHINEVISIONLIB_API void cv2shell::ImgEquilateral(Mat &matImg, Mat &matResizeImg, const Scalar &border_color)
+MACHINEVISIONLIB void cv2shell::ImgEquilateral(Mat &matImg, Mat &matResizeImg, const Scalar &border_color)
 {
 	INT nTop = 0, nBottom = 0, nLeft = 0, nRight = 0, nDifference;
 
@@ -323,7 +335,7 @@ MACHINEVISIONLIB_API void cv2shell::ImgEquilateral(Mat &matImg, Mat &matResizeIm
 }
 
 //* 根据哈希计算的要求，需要将图片缩小以去除图片细节，该函数将计算按比例缩小至不能被8整出的最小图片尺寸
-MACHINEVISIONLIB_API ST_IMG_RESIZE cv2shell::CV2GetResizeValue(const CHAR *pszImgName)
+MACHINEVISIONLIB ST_IMG_RESIZE cv2shell::CV2GetResizeValue(const CHAR *pszImgName)
 {
 	Mat matImg = imread(pszImgName);
 	if (matImg.data == NULL)
@@ -495,7 +507,7 @@ INT ImgMatcher::ImgSimilarity(const CHAR *pszImgName, INT *pnDistance)
 //*                       不是人脸
 //* 
 //* nMinPossibleFaceSize: 人脸最小可能的尺寸，换言之就是人脸检测算法寻找人脸的最小区域
-MACHINEVISIONLIB_API INT *cv2shell::FaceDetect(Mat &matImg, FLOAT flScale, INT nMinNeighbors, INT nMinPossibleFaceSize)
+MACHINEVISIONLIB INT *cv2shell::FaceDetect(Mat &matImg, FLOAT flScale, INT nMinNeighbors, INT nMinPossibleFaceSize)
 {
 	UCHAR *pubResultBuf = (UCHAR*)malloc(LIBFACEDETECT_BUFFER_SIZE);
 	if (!pubResultBuf)
@@ -519,7 +531,7 @@ MACHINEVISIONLIB_API INT *cv2shell::FaceDetect(Mat &matImg, FLOAT flScale, INT n
 	return NULL;
 }
 
-MACHINEVISIONLIB_API INT *cv2shell::FaceDetect(const CHAR *pszImgName, FLOAT flScale, INT nMinNeighbors, INT nMinPossibleFaceSize)
+MACHINEVISIONLIB INT *cv2shell::FaceDetect(const CHAR *pszImgName, FLOAT flScale, INT nMinNeighbors, INT nMinPossibleFaceSize)
 {
 	Mat matImg = imread(pszImgName);
 	if (matImg.empty())
@@ -533,7 +545,7 @@ MACHINEVISIONLIB_API INT *cv2shell::FaceDetect(const CHAR *pszImgName, FLOAT flS
 }
 
 //* 用矩形框标记出人脸
-MACHINEVISIONLIB_API void cv2shell::MarkFaceWithRectangle(Mat &matImg, INT *pnFaces)
+MACHINEVISIONLIB void cv2shell::MarkFaceWithRectangle(Mat &matImg, INT *pnFaces)
 {
 	for (INT i = 0; i < *pnFaces; i++)
 	{
@@ -552,7 +564,7 @@ MACHINEVISIONLIB_API void cv2shell::MarkFaceWithRectangle(Mat &matImg, INT *pnFa
 	free(pnFaces);
 }
 
-MACHINEVISIONLIB_API void cv2shell::MarkFaceWithRectangle(Mat &matImg, FLOAT flScale, INT nMinNeighbors, INT nMinPossibleFaceSize)
+MACHINEVISIONLIB void cv2shell::MarkFaceWithRectangle(Mat &matImg, FLOAT flScale, INT nMinNeighbors, INT nMinPossibleFaceSize)
 {
 	INT *pnFaces = FaceDetect(matImg, flScale, nMinNeighbors, nMinPossibleFaceSize);
 	if (!pnFaces)
@@ -563,7 +575,7 @@ MACHINEVISIONLIB_API void cv2shell::MarkFaceWithRectangle(Mat &matImg, FLOAT flS
 	imshow("Face Detect Result", matImg);
 }
 
-MACHINEVISIONLIB_API void cv2shell::MarkFaceWithRectangle(const CHAR *pszImgName, FLOAT flScale, INT nMinNeighbors, INT nMinPossibleFaceSize)
+MACHINEVISIONLIB void cv2shell::MarkFaceWithRectangle(const CHAR *pszImgName, FLOAT flScale, INT nMinNeighbors, INT nMinPossibleFaceSize)
 {
 	Mat matImg = imread(pszImgName);
 	if (matImg.empty())
@@ -576,7 +588,7 @@ MACHINEVISIONLIB_API void cv2shell::MarkFaceWithRectangle(const CHAR *pszImgName
 }
 
 //* 初始化用于人脸检测的DNN网络
-MACHINEVISIONLIB_API Net cv2shell::InitFaceDetectDNNet(void)
+MACHINEVISIONLIB Net cv2shell::InitFaceDetectDNNet(void)
 {
 	String strModelCfgFile = "C:\\Windows\\System32\\models\\resnet\\deploy.prototxt";
 	String strModelFile = "C:\\Windows\\System32\\models\\resnet\\res10_300x300_ssd_iter_140000.caffemodel";
@@ -589,7 +601,7 @@ MACHINEVISIONLIB_API Net cv2shell::InitFaceDetectDNNet(void)
 }
 
 //* 使用DNN网络已训练好的模型开发的人脸检测函数
-MACHINEVISIONLIB_API Mat cv2shell::FaceDetect(Net &dnnNet, Mat &matImg, const Size &size, FLOAT flScale, const Scalar &mean)
+MACHINEVISIONLIB Mat cv2shell::FaceDetect(Net &dnnNet, Mat &matImg, const Size &size, FLOAT flScale, const Scalar &mean)
 {
 	//* 加载图片文件并归一化，size参数指定图片要缩放的目标尺寸，mena指定要减去的平均值的平均标量（红蓝绿三个颜色通道都要减）
 	Mat matInputBlob = blobFromImage(matImg, flScale, size, mean, false, false);
@@ -641,7 +653,7 @@ static Size __ResizeImgToSpecPixel(Mat &matImg, INT nMinPixel)
 }
 
 //* 该函数可以自动等比例resize图片尺寸到300像素左右，以确保最佳识别效果
-MACHINEVISIONLIB_API Mat cv2shell::FaceDetect(Net &dnnNet, Mat &matImg, ENUM_IMGRESIZE_METHOD enumMethod, FLOAT flScale, const Scalar &mean)
+MACHINEVISIONLIB Mat cv2shell::FaceDetect(Net &dnnNet, Mat &matImg, ENUM_IMGRESIZE_METHOD enumMethod, FLOAT flScale, const Scalar &mean)
 {
 	if (enumMethod == EIRSZM_EQUALRATIO)
 	{
@@ -662,7 +674,7 @@ MACHINEVISIONLIB_API Mat cv2shell::FaceDetect(Net &dnnNet, Mat &matImg, ENUM_IMG
 	}
 }
 
-MACHINEVISIONLIB_API Mat cv2shell::FaceDetect(Net &dnnNet, const CHAR *pszImgName, ENUM_IMGRESIZE_METHOD enumMethod, FLOAT flScale, const Scalar &mean)
+MACHINEVISIONLIB Mat cv2shell::FaceDetect(Net &dnnNet, const CHAR *pszImgName, ENUM_IMGRESIZE_METHOD enumMethod, FLOAT flScale, const Scalar &mean)
 {
 	Mat matImg = imread(pszImgName);
 	if (matImg.empty())
@@ -677,7 +689,7 @@ MACHINEVISIONLIB_API Mat cv2shell::FaceDetect(Net &dnnNet, const CHAR *pszImgNam
 	return FaceDetect(dnnNet, matImg, enumMethod, flScale, mean);
 }
 
-MACHINEVISIONLIB_API Mat cv2shell::FaceDetect(Net &dnnNet, const CHAR *pszImgName, const Size &size, FLOAT flScale, const Scalar &mean)
+MACHINEVISIONLIB Mat cv2shell::FaceDetect(Net &dnnNet, const CHAR *pszImgName, const Size &size, FLOAT flScale, const Scalar &mean)
 {
 	Mat matImg = imread(pszImgName);
 	if (matImg.empty())
@@ -693,7 +705,7 @@ MACHINEVISIONLIB_API Mat cv2shell::FaceDetect(Net &dnnNet, const CHAR *pszImgNam
 }
 
 //* 参数vFaces用于保存检测到的人脸信息，是一个输出参数
-MACHINEVISIONLIB_API void cv2shell::FaceDetect(Net &dnnNet, Mat &matImg, vector<Face> &vFaces, const Size &size,
+MACHINEVISIONLIB void cv2shell::FaceDetect(Net &dnnNet, Mat &matImg, vector<Face> &vFaces, const Size &size,
 	FLOAT flConfidenceThreshold, FLOAT flScale, const Scalar &mean)
 {
 	//* 加载图片文件并归一化，size参数指定图片要缩放的目标尺寸，mena指定要减去的平均值的平均标量（红蓝绿三个颜色通道都要减）
@@ -725,7 +737,7 @@ MACHINEVISIONLIB_API void cv2shell::FaceDetect(Net &dnnNet, Mat &matImg, vector<
 	}
 }
 
-MACHINEVISIONLIB_API void cv2shell::FaceDetect(Net &dnnNet, Mat &matImg, vector<Face> &vFaces, FLOAT flConfidenceThreshold,
+MACHINEVISIONLIB void cv2shell::FaceDetect(Net &dnnNet, Mat &matImg, vector<Face> &vFaces, FLOAT flConfidenceThreshold,
 												ENUM_IMGRESIZE_METHOD enumMethod, FLOAT flScale, const Scalar &mean)
 {
 	if (enumMethod == EIRSZM_EQUALRATIO)
@@ -747,7 +759,7 @@ MACHINEVISIONLIB_API void cv2shell::FaceDetect(Net &dnnNet, Mat &matImg, vector<
 	}
 }
 
-MACHINEVISIONLIB_API void cv2shell::FaceDetect(Net &dnnNet, const CHAR *pszImgName, vector<Face> &vFaces,
+MACHINEVISIONLIB void cv2shell::FaceDetect(Net &dnnNet, const CHAR *pszImgName, vector<Face> &vFaces,
 												FLOAT flConfidenceThreshold, ENUM_IMGRESIZE_METHOD enumMethod, 
 												FLOAT flScale, const Scalar &mean)
 {
@@ -762,7 +774,7 @@ MACHINEVISIONLIB_API void cv2shell::FaceDetect(Net &dnnNet, const CHAR *pszImgNa
 	FaceDetect(dnnNet, matImg, vFaces, flConfidenceThreshold, enumMethod, flScale, mean);
 }
 
-MACHINEVISIONLIB_API void cv2shell::FaceDetect(Net &dnnNet, const CHAR *pszImgName, vector<Face> &vFaces, const Size &size,
+MACHINEVISIONLIB void cv2shell::FaceDetect(Net &dnnNet, const CHAR *pszImgName, vector<Face> &vFaces, const Size &size,
 	FLOAT flConfidenceThreshold, FLOAT flScale, const Scalar &mean)
 {
 	Mat matImg = imread(pszImgName);
@@ -778,7 +790,7 @@ MACHINEVISIONLIB_API void cv2shell::FaceDetect(Net &dnnNet, const CHAR *pszImgNa
 
 //* 将测结果在图片上展示出来：用矩形框标记出人脸并输出预测概率
 //* 参数flConfidenceThreshold指定最小置信度阈值，也就是预测是人脸的最小概率值，大于此概率的被认作是人脸并标记
-MACHINEVISIONLIB_API void cv2shell::MarkFaceWithRectangle(Mat &matImg, Mat &matFaces, FLOAT flConfidenceThreshold)
+MACHINEVISIONLIB void cv2shell::MarkFaceWithRectangle(Mat &matImg, Mat &matFaces, FLOAT flConfidenceThreshold)
 {
 	for (int i = 0; i < matFaces.rows; i++)
 	{
@@ -815,7 +827,7 @@ MACHINEVISIONLIB_API void cv2shell::MarkFaceWithRectangle(Mat &matImg, Mat &matF
 }
 
 //* 用矩形框标出人脸并输出概率
-MACHINEVISIONLIB_API void cv2shell::MarkFaceWithRectangle(Net &dnnNet, const CHAR *pszImgName, const Size &size, 
+MACHINEVISIONLIB void cv2shell::MarkFaceWithRectangle(Net &dnnNet, const CHAR *pszImgName, const Size &size, 
 															FLOAT flConfidenceThreshold, FLOAT flScale, const Scalar &mean)
 {
 	Mat matImg = imread(pszImgName);
@@ -834,7 +846,7 @@ MACHINEVISIONLIB_API void cv2shell::MarkFaceWithRectangle(Net &dnnNet, const CHA
 }
 
 //* 用矩形框标出人脸并输出概率
-MACHINEVISIONLIB_API void cv2shell::MarkFaceWithRectangle(Net &dnnNet, const CHAR *pszImgName, FLOAT flConfidenceThreshold,
+MACHINEVISIONLIB void cv2shell::MarkFaceWithRectangle(Net &dnnNet, const CHAR *pszImgName, FLOAT flConfidenceThreshold,
 	ENUM_IMGRESIZE_METHOD enumMethod, FLOAT flScale, const Scalar &mean)
 {
 	Mat matImg = imread(pszImgName);
@@ -852,7 +864,7 @@ MACHINEVISIONLIB_API void cv2shell::MarkFaceWithRectangle(Net &dnnNet, const CHA
 	MarkFaceWithRectangle(matImg, matFaces, flConfidenceThreshold);
 }
 
-MACHINEVISIONLIB_API void cv2shell::MarkFaceWithRectangle(Mat &matImg, vector<Face> &vFaces)
+MACHINEVISIONLIB void cv2shell::MarkFaceWithRectangle(Mat &matImg, vector<Face> &vFaces)
 {
 	vector<Face>::iterator itFace = vFaces.begin();
 	for (; itFace != vFaces.end(); itFace++)
@@ -884,7 +896,7 @@ MACHINEVISIONLIB_API void cv2shell::MarkFaceWithRectangle(Mat &matImg, vector<Fa
 }
 
 //* 初始化轻型分类器，其实就是把DNN网络配置文件和训练好的模型加载到内存并据此建立DNN网络
-MACHINEVISIONLIB_API Net cv2shell::InitLightClassifier(vector<string> &vClassNames)
+MACHINEVISIONLIB Net cv2shell::InitLightClassifier(vector<string> &vClassNames)
 {
 	dnn::Net dnnNet;
 
@@ -911,7 +923,7 @@ MACHINEVISIONLIB_API Net cv2shell::InitLightClassifier(vector<string> &vClassNam
 }
 
 //* 使用DNN网络识别目标属于哪种物体
-MACHINEVISIONLIB_API void cv2shell::ObjectDetect(Mat &matImg, Net &dnnNet, vector<string> &vClassNames, vector<RecogCategory> &vObjects, 
+MACHINEVISIONLIB void cv2shell::ObjectDetect(Mat &matImg, Net &dnnNet, vector<string> &vClassNames, vector<RecogCategory> &vObjects, 
 													const Size &size, FLOAT flConfidenceThreshold, FLOAT flScale, const Scalar &mean)
 {
 	if (matImg.channels() == 4)
@@ -950,7 +962,7 @@ MACHINEVISIONLIB_API void cv2shell::ObjectDetect(Mat &matImg, Net &dnnNet, vecto
 	}
 }
 
-MACHINEVISIONLIB_API void cv2shell::ObjectDetect(Mat &matImg, Net &dnnNet, vector<string> &vClassNames, vector<RecogCategory> &vObjects, 
+MACHINEVISIONLIB void cv2shell::ObjectDetect(Mat &matImg, Net &dnnNet, vector<string> &vClassNames, vector<RecogCategory> &vObjects, 
 													FLOAT flConfidenceThreshold, ENUM_IMGRESIZE_METHOD enumMethod, FLOAT flScale, const Scalar &mean)
 {
 	if (enumMethod == EIRSZM_EQUALRATIO)
@@ -973,7 +985,7 @@ MACHINEVISIONLIB_API void cv2shell::ObjectDetect(Mat &matImg, Net &dnnNet, vecto
 	}
 }
 
-MACHINEVISIONLIB_API void cv2shell::ObjectDetect(const CHAR *pszImgName, Net &dnnNet, vector<string> &vClassNames, vector<RecogCategory> &vObjects,
+MACHINEVISIONLIB void cv2shell::ObjectDetect(const CHAR *pszImgName, Net &dnnNet, vector<string> &vClassNames, vector<RecogCategory> &vObjects,
 													const Size &size, FLOAT flConfidenceThreshold, FLOAT flScale, const Scalar &mean)
 {
 	Mat matImg = imread(pszImgName);
@@ -987,7 +999,7 @@ MACHINEVISIONLIB_API void cv2shell::ObjectDetect(const CHAR *pszImgName, Net &dn
 	ObjectDetect(matImg, dnnNet, vClassNames, vObjects, size, flConfidenceThreshold, flScale, mean);
 }
 
-MACHINEVISIONLIB_API void cv2shell::ObjectDetect(const CHAR *pszImgName, Net &dnnNet, vector<string> &vClassNames, vector<RecogCategory> &vObjects,
+MACHINEVISIONLIB void cv2shell::ObjectDetect(const CHAR *pszImgName, Net &dnnNet, vector<string> &vClassNames, vector<RecogCategory> &vObjects,
 													FLOAT flConfidenceThreshold, ENUM_IMGRESIZE_METHOD enumMethod, FLOAT flScale, const Scalar &mean)
 {
 	Mat matImg = imread(pszImgName);
@@ -1002,7 +1014,7 @@ MACHINEVISIONLIB_API void cv2shell::ObjectDetect(const CHAR *pszImgName, Net &dn
 }
 
 //* 将检测出的目标对象在原图上用矩形框标记出来
-MACHINEVISIONLIB_API void cv2shell::MarkObjectWithRectangle(Mat &matImg, vector<RecogCategory> &vObjects)
+MACHINEVISIONLIB void cv2shell::MarkObjectWithRectangle(Mat &matImg, vector<RecogCategory> &vObjects)
 {
 	vector<RecogCategory>::iterator itObject = vObjects.begin();
 
@@ -1041,7 +1053,7 @@ MACHINEVISIONLIB_API void cv2shell::MarkObjectWithRectangle(Mat &matImg, vector<
 		imshow("Object Detect Result", matImg);
 }
 
-MACHINEVISIONLIB_API void cv2shell::MarkObjectWithRectangle(const CHAR *pszImgName, Net &dnnNet, vector<string> &vClassNames, 
+MACHINEVISIONLIB void cv2shell::MarkObjectWithRectangle(const CHAR *pszImgName, Net &dnnNet, vector<string> &vClassNames, 
 															const Size &size, FLOAT flConfidenceThreshold, FLOAT flScale, 
 															const Scalar &mean)
 {
@@ -1058,7 +1070,7 @@ MACHINEVISIONLIB_API void cv2shell::MarkObjectWithRectangle(const CHAR *pszImgNa
 	MarkObjectWithRectangle(matImg, vObjects);
 }
 
-MACHINEVISIONLIB_API void cv2shell::MarkObjectWithRectangle(const CHAR *pszImgName, Net &dnnNet, vector<string> &vClassNames, FLOAT flConfidenceThreshold,
+MACHINEVISIONLIB void cv2shell::MarkObjectWithRectangle(const CHAR *pszImgName, Net &dnnNet, vector<string> &vClassNames, FLOAT flConfidenceThreshold,
 															ENUM_IMGRESIZE_METHOD enumMethod, FLOAT flScale, const Scalar &mean)
 {
 	Mat matImg = imread(pszImgName);
@@ -1076,7 +1088,7 @@ MACHINEVISIONLIB_API void cv2shell::MarkObjectWithRectangle(const CHAR *pszImgNa
 
 //* 获取检测到的目标对象的数量，如果检测到了目标对象，则参数pflConfidenceOfExist保存可信度值，不存在的话pflConfidenceOfExist返回一个没有意义的值
 //* 参数strObjectName必须从InitLightClassifier()函数读入的voc.names文件中获取，因为这个分类器只能分类voc.names定义的那些目标物体
-MACHINEVISIONLIB_API INT cv2shell::GetObjectNum(vector<RecogCategory> &vObjects, string strObjectName, FLOAT *pflConfidenceOfExist, 
+MACHINEVISIONLIB INT cv2shell::GetObjectNum(vector<RecogCategory> &vObjects, string strObjectName, FLOAT *pflConfidenceOfExist, 
 												FLOAT *pflConfidenceOfObjectNum)
 {
 	vector<RecogCategory>::iterator itObject = vObjects.begin();

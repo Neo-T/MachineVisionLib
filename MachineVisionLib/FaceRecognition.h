@@ -1,8 +1,8 @@
 #pragma once
 #ifdef MACHINEVISIONLIB_EXPORTS
-#define FACERECOGNITION_API __declspec(dllexport)
+#define FACERECOGNITION __declspec(dllexport)
 #else
-#define FACERECOGNITION_API __declspec(dllimport)
+#define FACERECOGNITION __declspec(dllimport)
 #endif
 
 #include "caffe/caffe.hpp"
@@ -44,7 +44,7 @@ typedef struct _ST_FACE_DB_STATIS_INFO_ {
 } ST_FACE_DB_STATIS_INFO, *PST_FACE_DB_STATIS_INFO;
 
 //* 人脸数据库类
-class FACERECOGNITION_API FaceDatabase {
+class FACERECOGNITION FaceDatabase {
 public:
 	FaceDatabase() {
 #if NEED_GPU
@@ -84,7 +84,7 @@ public:
 	DOUBLE Predict(Mat& matImg, string& strPersonName, FLOAT flConfidenceThreshold = 0.55, FLOAT flStopPredictThreshold = 0.95);
 	DOUBLE Predict(const CHAR *pszImgName, string& strPersonName, FLOAT flConfidenceThreshold = 0.55, FLOAT flStopPredictThreshold = 0.95);
 
-	class FACERECOGNITION_API VideoPredict {
+	class FACERECOGNITION VideoPredict {
 	public:
 		VideoPredict(FaceDatabase *pinput_face_db, FLOAT flInputScale = 1.05f, INT nInputMinNeighbors = 5, INT nInputMinPossibleFaceSize = 16) {
 			pubFeaceDetectResultBuf = (UCHAR*)malloc(LIBFACEDETECT_BUFFER_SIZE);
