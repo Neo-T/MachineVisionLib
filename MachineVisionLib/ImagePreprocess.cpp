@@ -292,3 +292,22 @@ __lblEnd:
 	matDestImg.convertTo(matDestImg, CV_8UC1);
 }
 
+//* 
+void ImgGroupedContour::Preprocess(Mat& matSrcImg, DOUBLE dblThreshold1, DOUBLE dblThreshold2, INT nApertureSize, DOUBLE dblGamma, DOUBLE dblPowerValue, DOUBLE dblNorm)
+{
+	Mat matGrayImg, matContrastEqualImg;
+
+	cvtColor(matSrcImg, matGrayImg, COLOR_BGR2GRAY);
+	imgpreproc::ContrastEqualization(matGrayImg, matContrastEqualImg, dblGamma, dblPowerValue, dblNorm);
+
+	//* 使用Canny算法进行边缘检测，理论地址：
+	//* https://blog.csdn.net/jia20003/article/details/41173767
+	//* Opencv提供的Canny()函数说明:
+	//* https://www.cnblogs.com/mypsq/p/4983566.html
+	Canny(matContrastEqualImg, matGrayImg, dblThreshold1, dblThreshold2, nApertureSize);
+
+	//* 寻找轮廓，相关资料：
+	//* https://blog.csdn.net/dcrmg/article/details/51987348
+	findContours(matGrayImg, vContours, vHierarchy, RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+}
+
