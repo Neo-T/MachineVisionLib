@@ -85,7 +85,5 @@ namespace imgpreproc {
 												DOUBLE dblPowerValue = 0.1, DOUBLE dblNorm = 10);									//* 对比度均衡算法增强图像
 	IMGPREPROC void ContrastEqualizationWithFilter(Mat& matInputGrayImg, Mat& matDestImg, Size size, FLOAT *pflaFilterKernel, 
 														DOUBLE dblGamma = 0.4, DOUBLE dblPowerValue = 0.1, DOUBLE dblNorm = 10);	//* 带滤波的对比度均衡算法增强图像
-
-	//IMGPREPROC_API void FindContourUsingCanny(Mat& matSrcImg, );
 };
 

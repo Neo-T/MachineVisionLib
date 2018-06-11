@@ -16,7 +16,6 @@
 //* https://blog.csdn.net/hit2015spring/article/details/50448025
 //* 直方图均衡化增强的理论地址（注意，文档里的L就是灰度值总数，也就是256个灰度值：0-255）：
 //* https://www.cnblogs.com/newpanderking/articles/2950242.html
-//* http://lib.csdn.net/article/aiframework/52656
 IMGPREPROC void imgpreproc::HistogramEqualization(Mat& matInputGrayImg, Mat& matDestImg)
 {
 	matDestImg = Mat(matInputGrayImg.rows, matInputGrayImg.cols, CV_8UC1);
