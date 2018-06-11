@@ -9,6 +9,7 @@
 #include <facedetect-dll.h>
 #include "common_lib.h"
 #include "MachineVisionLib.h"
+#include "MathAlgorithmLib.h"
 #include "ImagePreprocess.h"
 
 //* 利用直方图均衡算法增强图像对比度和清晰度，注意输入图像一定是灰度图，关于灰度级和动态范围的概念：
@@ -292,8 +293,9 @@ __lblEnd:
 	matDestImg.convertTo(matDestImg, CV_8UC1);
 }
 
-//* 
-void ImgGroupedContour::Preprocess(Mat& matSrcImg, DOUBLE dblThreshold1, DOUBLE dblThreshold2, INT nApertureSize, DOUBLE dblGamma, DOUBLE dblPowerValue, DOUBLE dblNorm)
+//* 预处理函数，首先边缘检测、然后找出轮廓，最后将轮廓放入链表以备后续分组处理
+void ImgGroupedContour::Preprocess(Mat& matSrcImg, DOUBLE dblThreshold1, DOUBLE dblThreshold2, INT nApertureSize, 
+									DOUBLE dblGamma, DOUBLE dblPowerValue, DOUBLE dblNorm)
 {
 	Mat matGrayImg, matContrastEqualImg;
 
@@ -308,6 +310,212 @@ void ImgGroupedContour::Preprocess(Mat& matSrcImg, DOUBLE dblThreshold1, DOUBLE 
 
 	//* 寻找轮廓，相关资料：
 	//* https://blog.csdn.net/dcrmg/article/details/51987348
-	findContours(matGrayImg, vContours, vHierarchy, RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+	findContours(matGrayImg, vContours, vHierarchy, RETR_TREE, CV_CHAIN_APPROX_NONE, Point(0, 0));
+
+	pstMallocMemForLink = pstNotGroupedContourLink = (PST_CONTOUR_NODE)malloc(vContours.size() * sizeof(ST_CONTOUR_NODE));
+	if(!pstMallocMemForLink)
+	{
+		string strError = string("Preprocess()函数执行错误，无法为轮廓链表的建立申请一块动态内存！");
+		throw runtime_error(strError);
+	}
+
+	//* 建立轮廓链表
+	for (int i = 0; i < vContours.size(); i++)
+	{
+		//vector<Point> vPoints = vContours[i];
+		//for (int j = 0; j < vPoints.size(); j++)
+		//{
+		//	cout << i << "-" << j << ": (" << vPoints[j].x << ", " << vPoints[j].y << ")" << endl;
+		//}
+		//cout << endl << endl;
+
+		pstNotGroupedContourLink[i].pvecContour = &vContours[i];
+		pstNotGroupedContourLink[i].nIndex = i;
+
+		if (i)
+		{
+			pstNotGroupedContourLink[i - 1].pstNextNode = pstNotGroupedContourLink + i;
+			pstNotGroupedContourLink[i].pstPrevNode = pstNotGroupedContourLink + (i - 1);
+			pstNotGroupedContourLink[i].pstNextNode = NULL;
+		}
+		else
+			pstNotGroupedContourLink[i].pstPrevNode = NULL;
+	}
+}
+
+//* 将临近轮廓胶合在一起
+void ImgGroupedContour::GlueAdjacentContour(INT nContourGroupIndex, DOUBLE dblDistanceThreshold)
+{
+	PST_CONTOUR_NODE pstNextContourNode = pstNotGroupedContourLink, pstFoundContourNode;
+	BOOL blIsFoundGroupNode = FALSE;
+
+__lblLoop:
+	if (NULL == pstNextContourNode)
+	{
+		if (blIsFoundGroupNode) //* 重新开始找，看还有聚集的吗，之所这样设计是因为我们通过opencv获取的轮廓数据有可能分布并不连续，需要多次查找才能确定分布路径
+		{
+			blIsFoundGroupNode = FALSE;
+			pstNextContourNode = pstNotGroupedContourLink;
+
+			//* 胶合玩当前一波，再重新找一遍，看看未分组轮廓中是否还有与新胶合的轮廓相近的轮廓
+			//* 注意这种情况是存在的，因为链表后面的轮廓可能与链表前面的轮廓相近
+			goto __lblLoop;
+		}
+		else
+		{
+			return;
+		}
+	}
+
+	PST_CONTOUR_NODE pstGroupNode = vGroupContour[nContourGroupIndex].pstContourLink;
+	while (NULL != pstGroupNode)
+	{
+		DOUBLE dblDistance = malib::ShortestDistance(pstGroupNode->pvecContour, pstNextContourNode->pvecContour);
+		if (dblDistance < dblDistanceThreshold)	//* 在许可的距离范围内，那么组团就行了
+		{
+			//* 先从原始链表中摘出来
+			if (pstNextContourNode->pstPrevNode)
+				pstNextContourNode->pstPrevNode->pstNextNode = pstNextContourNode->pstNextNode;
+			else
+			{
+				//* 链表第一个节点没有上一个节点，此时要调整链表首节点
+				pstNotGroupedContourLink = pstNextContourNode->pstNextNode;
+			}
+
+			if (pstNextContourNode->pstNextNode)
+				pstNextContourNode->pstNextNode->pstPrevNode = pstNextContourNode->pstPrevNode;
+
+			pstFoundContourNode = pstNextContourNode;
+			pstNextContourNode = pstNextContourNode->pstNextNode;
+
+			//* 然后将其放入该轮廓组中
+			pstFoundContourNode->pstNextNode = pstGroupNode->pstNextNode;
+			pstFoundContourNode->pstPrevNode = pstGroupNode;
+			if (pstGroupNode->pstNextNode)
+				pstGroupNode->pstNextNode->pstPrevNode = pstFoundContourNode;
+			pstGroupNode->pstNextNode = pstFoundContourNode;
+
+			vGroupContour[nContourGroupIndex].nContourNum++;
+
+			blIsFoundGroupNode = TRUE;
+
+			goto __lblLoop;
+		}
+
+		pstGroupNode = pstGroupNode->pstNextNode;
+	}
+
+	pstNextContourNode = pstNextContourNode->pstNextNode;
+	goto __lblLoop;
+}
+
+//* 对轮廓分组，采用的算法很简单，就是逐个比价两个轮廓的距离，只要距离小于参数dblDistanceThreshold指定的像素值，则认为两个轮廓相近，属于同一组
+void ImgGroupedContour::GroupContours(DOUBLE dblDistanceThreshold)
+{
+	INT nContourGroupIndex = 0;
+	ST_CONTOUR_GROUP stContourGroup;
+	PST_CONTOUR_NODE pstNextContourNode = pstNotGroupedContourLink;
+
+__lblLoop:
+	if (NULL == pstNextContourNode)
+		return;
+
+	//* 将链表剩余的的第一个节点作为下一个分组的起始节点
+	stContourGroup.pstContourLink = pstNextContourNode;
+	stContourGroup.nContourNum = 1;
+	vGroupContour.push_back(stContourGroup);
+	pstNotGroupedContourLink = pstNextContourNode->pstNextNode;
+	if (pstNotGroupedContourLink)
+		pstNotGroupedContourLink->pstPrevNode = NULL;
+
+	pstNextContourNode->pstNextNode = NULL;
+	pstNextContourNode->pstPrevNode = NULL;
+
+	GlueAdjacentContour(nContourGroupIndex, dblDistanceThreshold);
+
+	nContourGroupIndex++;
+
+	pstNextContourNode = pstNotGroupedContourLink;
+
+	goto __lblLoop;
+}
+
+//* 获取分组轮廓的对角点
+void ImgGroupedContour::GetDiagonalPointsOfGroupContours(INT nMinContourNumThreshold)
+{
+	for (INT i = 0; i < vGroupContour.size(); i++)
+	{
+		ST_CONTOUR_GROUP stContourGroup = vGroupContour[i];
+
+		//cout << "Contour Num: " << stContourGroup.nContourNum << endl;
+
+		if (stContourGroup.nContourNum < nMinContourNumThreshold)
+			continue;
+
+		INT x_left_top = 10000, y_left_top = 10000, x_right_bottom = 0, y_right_bottom = 0;
+
+		//* 找出整个轮廓左上角和右下角的坐标
+		PST_CONTOUR_NODE pstGroupNode = vGroupContour[i].pstContourLink;
+		while (pstGroupNode != NULL)
+		{
+			//cout << pstGroupNode->nIndex << " ";
+
+			for (INT j = 0; j < (*pstGroupNode->pvecContour).size(); j++)
+			{
+				Point point = (*pstGroupNode->pvecContour)[j];
+				if (point.x < x_left_top)
+					x_left_top = point.x;
+				if (point.y < y_left_top)
+					y_left_top = point.y;
+
+				if (point.x > x_right_bottom)
+					x_right_bottom = point.x;
+				if (point.y > y_right_bottom)
+					y_right_bottom = point.y;
+			}
+
+			pstGroupNode = pstGroupNode->pstNextNode;
+		}
+
+		cout << endl;
+
+		Point left(x_left_top, y_left_top);
+		Point right(x_right_bottom, y_right_bottom);
+
+		//cout << "rect: " << left << ", " << right << endl;
+
+		ST_DIAGONAL_POINTS stDiagPoints;
+		stDiagPoints.point_left = left;
+		stDiagPoints.point_right = right;
+		vDiagonalPointsOfGroupContour.push_back(stDiagPoints);
+	}
+}
+
+//* 同上
+void ImgGroupedContour::GetDiagonalPointsOfGroupContours(INT nMinContourNumThreshold, vector<ST_DIAGONAL_POINTS>& vOutputDiagonalPoints)
+{
+	GetDiagonalPointsOfGroupContours(nMinContourNumThreshold);
+
+	vOutputDiagonalPoints = vDiagonalPointsOfGroupContour;
+}
+
+//* 用矩形标记分组轮廓
+void ImgGroupedContour::RectMarkGroupContours(Mat& matMarkImg, BOOL blIsMergeOverlappingRect, Scalar scalar)
+{
+	vector<ST_DIAGONAL_POINTS> vRects;
+
+	//* 是否需要合并重叠的矩形
+	if (blIsMergeOverlappingRect)
+	{
+		cv2shell::MergeOverlappingRect(vDiagonalPointsOfGroupContour, vRects);
+	}
+	else
+		vRects = vDiagonalPointsOfGroupContour;
+
+	for (INT i = 0; i < vRects.size(); i++)
+	{
+		ST_DIAGONAL_POINTS stRect = vRects[i];
+		rectangle(matMarkImg, stRect.point_left, stRect.point_right, scalar, 1);
+	}
 }
 

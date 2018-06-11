@@ -1122,6 +1122,53 @@ MACHINEVISIONLIB INT cv2shell::GetObjectNum(vector<RecogCategory> &vObjects, str
 	return nObjectNum;
 }
 
+//* 合并重叠的矩形，参数vSrcRects为原始矩形数据，函数检查该矩形集是否存在重叠的矩形，重叠的矩形将被合并后保存到参数vMergedRects指向的内存中
+MACHINEVISIONLIB void cv2shell::MergeOverlappingRect(vector<ST_DIAGONAL_POINTS> vSrcRects, vector<ST_DIAGONAL_POINTS>& vMergedRects)
+{
+	INT nMergeRectIndex = 0;
+
+__lblLoop:
+	if (!vSrcRects.size())
+		return;
+
+	vector<ST_DIAGONAL_POINTS>::iterator itSrcRect = vSrcRects.begin();
+
+	vMergedRects.push_back(*itSrcRect);
+	vSrcRects.erase(itSrcRect);
+
+	itSrcRect = vSrcRects.begin();
+	for (; itSrcRect != vSrcRects.end();)
+	{
+		//* 看看矩形是否相交
+		ST_DIAGONAL_POINTS stRectTarget = *itSrcRect;
+		ST_DIAGONAL_POINTS stRectBase = vMergedRects[nMergeRectIndex];
+
+		INT nMinX, nMaxX, nMinY, nMaxY;
+		nMinX = max(stRectBase.point_left.x, stRectTarget.point_left.x);
+		nMaxX = min(stRectBase.point_right.x, stRectTarget.point_right.x);
+		nMinY = max(stRectBase.point_left.y, stRectTarget.point_left.y);
+		nMaxY = min(stRectBase.point_right.y, stRectTarget.point_right.y);
+		if (nMinX > nMaxX || nMinY > nMaxY)	//* 不相交
+		{
+			itSrcRect++;
+			continue;
+		}
+		else
+		{
+			vMergedRects[nMergeRectIndex].point_left.x = min(stRectBase.point_left.x, stRectTarget.point_left.x);
+			vMergedRects[nMergeRectIndex].point_left.y = min(stRectBase.point_left.y, stRectTarget.point_left.y);
+			vMergedRects[nMergeRectIndex].point_right.x = max(stRectBase.point_right.x, stRectTarget.point_right.x);
+			vMergedRects[nMergeRectIndex].point_right.y = max(stRectBase.point_right.y, stRectTarget.point_right.y);
+
+			vSrcRects.erase(itSrcRect);
+			itSrcRect = vSrcRects.begin();	//* 重新开始查找相交的矩形
+		}
+	}
+
+	nMergeRectIndex++;
+	goto __lblLoop;
+}
+
 CMachineVisionLib::CMachineVisionLib()
 {
     return;

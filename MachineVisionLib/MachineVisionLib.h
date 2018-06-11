@@ -54,6 +54,12 @@ typedef struct _ST_IMG_RESIZE_ {
 	INT nCols;
 } ST_IMG_RESIZE, *PST_IMG_RESIZE;
 
+//* 对角点
+typedef struct _ST_DIAGONAL_POINTS_ {
+	Point point_left;
+	Point point_right;
+} ST_DIAGONAL_POINTS, *PST_DIAGONAL_POINTS;
+
 class MACHINEVISIONLIB RecogCategory {
 public:
 	RecogCategory()
@@ -142,7 +148,9 @@ namespace cv2shell {
 	MACHINEVISIONLIB void MarkObjectWithRectangle(Mat &matImg, vector<RecogCategory> &vObjects);
 	MACHINEVISIONLIB void MarkObjectWithRectangle(const CHAR *pszImgName, Net &dnnNet, vector<string> &vClassNames, const Size &size, FLOAT flConfidenceThreshold = 0.4, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 117.0, 123.0));
 	MACHINEVISIONLIB void MarkObjectWithRectangle(const CHAR *pszImgName, Net &dnnNet, vector<string> &vClassNames, FLOAT flConfidenceThreshold = 0.4, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUILATERAL, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 117.0, 123.0));
-	MACHINEVISIONLIB INT GetObjectNum(vector<RecogCategory> &vObjects, string strObjectName, FLOAT *pflConfidenceOfExist, FLOAT *pflConfidenceOfObjectNum);
+	MACHINEVISIONLIB INT GetObjectNum(vector<RecogCategory> &vObjects, string strObjectName, FLOAT *pflConfidenceOfExist, FLOAT *pflConfidenceOfObjectNum); 
+
+	MACHINEVISIONLIB void MergeOverlappingRect(vector<ST_DIAGONAL_POINTS> vSrcRects, vector<ST_DIAGONAL_POINTS>& vMergedRects);
 };
 
 //* caffe接口
