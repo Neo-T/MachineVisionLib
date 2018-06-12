@@ -8,32 +8,22 @@
 //* 使用近邻算法对图像轮廓分组
 class IMGPREPROC ImgGroupedContour {
 public:
-	ImgGroupedContour(Mat& matSrcImg, DOUBLE dblThreshold1, DOUBLE dblThreshold2, INT nApertureSize = 3, 
-						DOUBLE dblGamma = 0.4, DOUBLE dblPowerValue = 0.1, DOUBLE dblNorm = 10) {
-		if (matSrcImg.empty())
+	ImgGroupedContour(Mat& matGrayImg, DOUBLE dblThreshold1, DOUBLE dblThreshold2, INT nApertureSize = 3, BOOL blIsMarkContour = FALSE) {
+		if (matGrayImg.empty())
 		{
 			string strError = string("ImgContour类构造函数错误：传入的参数matSrcImg为空！");
 			throw runtime_error(strError);
 		}
 
-		Preprocess(matSrcImg, dblThreshold1, dblThreshold2, nApertureSize, dblGamma, dblPowerValue, dblNorm);
-	}
-
-	ImgGroupedContour(const CHAR *pszImgName, DOUBLE dblThreshold1, DOUBLE dblThreshold2, INT nApertureSize = 3, 
-						DOUBLE dblGamma = 0.4, DOUBLE dblPowerValue = 0.1, DOUBLE dblNorm = 10) {
-		Mat matSrcImg = imread(pszImgName);
-		if (matSrcImg.empty())
-		{
-			string strError =  string("ImgContour类构造函数错误：无法读入图片，请确认图片『") + pszImgName + string("』存在或者格式正确。");
-			throw runtime_error(strError);
-		}
-
-		Preprocess(matSrcImg, dblThreshold1, dblThreshold2, nApertureSize, dblGamma, dblPowerValue, dblNorm);
+		Preprocess(matGrayImg, dblThreshold1, dblThreshold2, nApertureSize, blIsMarkContour);
 	}
 
 	~ImgGroupedContour() {
-		if(pstMallocMemForLink)
+		if (pstMallocMemForLink)
+		{
 			free(pstMallocMemForLink);
+			cout << "The memory allocated for the contour grouping has been released." << endl;
+		}
 	}
 
 	//* 轮廓节点
@@ -66,7 +56,8 @@ public:
 	void RectMarkGroupContours(Mat& matMarkImg, BOOL blIsMergeOverlappingRect = FALSE, Scalar scalar = Scalar(230, 255, 0));
 
 private:
-	void Preprocess(Mat& matSrcImg, DOUBLE dblThreshold1, DOUBLE dblThreshold2, INT nApertureSize, DOUBLE dblGamma, DOUBLE dblPowerValue, DOUBLE dblNorm);
+	ImgGroupedContour() {}
+	void Preprocess(Mat& matGrayImg, DOUBLE dblThreshold1, DOUBLE dblThreshold2, INT nApertureSize, BOOL blIsMarkContour);
 	void GlueAdjacentContour(INT nContourGroupIndex, DOUBLE dblDistanceThreshold);
 
 	vector<vector<Point>> vContours;

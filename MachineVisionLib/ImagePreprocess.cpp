@@ -293,19 +293,13 @@ __lblEnd:
 }
 
 //* 预处理函数，首先边缘检测、然后找出轮廓，最后将轮廓放入链表以备后续分组处理
-void ImgGroupedContour::Preprocess(Mat& matSrcImg, DOUBLE dblThreshold1, DOUBLE dblThreshold2, INT nApertureSize, 
-									DOUBLE dblGamma, DOUBLE dblPowerValue, DOUBLE dblNorm)
+void ImgGroupedContour::Preprocess(Mat& matGrayImg, DOUBLE dblThreshold1, DOUBLE dblThreshold2, INT nApertureSize, BOOL blIsMarkContour)
 {
-	Mat matGrayImg, matContrastEqualImg;
-
-	cvtColor(matSrcImg, matGrayImg, COLOR_BGR2GRAY);
-	imgpreproc::ContrastEqualization(matGrayImg, matContrastEqualImg, dblGamma, dblPowerValue, dblNorm);
-
 	//* 使用Canny算法进行边缘检测，理论地址：
 	//* https://blog.csdn.net/jia20003/article/details/41173767
 	//* Opencv提供的Canny()函数说明:
 	//* https://www.cnblogs.com/mypsq/p/4983566.html
-	Canny(matContrastEqualImg, matGrayImg, dblThreshold1, dblThreshold2, nApertureSize);
+	Canny(matGrayImg, matGrayImg, dblThreshold1, dblThreshold2, nApertureSize);
 
 	//* 寻找轮廓，相关资料：
 	//* https://blog.csdn.net/dcrmg/article/details/51987348
@@ -319,8 +313,16 @@ void ImgGroupedContour::Preprocess(Mat& matSrcImg, DOUBLE dblThreshold1, DOUBLE 
 	}
 
 	//* 建立轮廓链表
+	RNG rng(458097);
+	Mat matContourImg = Mat::zeros(matGrayImg.size(), CV_8UC3);
 	for (int i = 0; i < vContours.size(); i++)
 	{
+		if (blIsMarkContour)
+		{
+			Scalar color = Scalar(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
+			drawContours(matContourImg, vContours, i, color, 1, 8, vHierarchy, 0, Point());
+		}		
+
 		//vector<Point> vPoints = vContours[i];
 		//for (int j = 0; j < vPoints.size(); j++)
 		//{
@@ -339,6 +341,11 @@ void ImgGroupedContour::Preprocess(Mat& matSrcImg, DOUBLE dblThreshold1, DOUBLE 
 		}
 		else
 			pstNotGroupedContourLink[i].pstPrevNode = NULL;
+	}
+
+	if (blIsMarkContour)
+	{
+		imshow("原始轮廓标记", matContourImg);
 	}
 }
 

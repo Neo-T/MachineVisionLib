@@ -19,33 +19,33 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{31487061-DB4B-47A4-8F67-200FC53A97BA}</ProjectGuid>
+    <ProjectGuid>{F097CCC2-3711-4A6A-8A04-CBD98D11FF52}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>MachineVisionLib</RootNamespace>
+    <RootNamespace>ConveyorBeltTearingDetector</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
-    <CharacterSet>NotSet</CharacterSet>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -74,28 +74,25 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(SolutionDir)common_lib;C:\OpenCV3.4\dlib-19.10;D:\work\OpenCV\libfacedetection\include;C:\OpenCV3.4\opencv\build\include\opencv2;C:\OpenCV3.4\opencv\build\include\opencv;C:\OpenCV3.4\opencv\build\include;C:\Users\marss\.caffe\dependencies\libraries_v140_x64_py27_1.1.0\libraries\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\include;D:\work\OpenCV\caffe\build\include;D:\work\OpenCV\caffe\include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)$(Platform)\$(Configuration);D:\work\OpenCV\libfacedetection\lib;C:\OpenCV3.4\dlib-19.10\build\x64\bin;C:\OpenCV3.4\opencv\build\x64\vc14\lib;C:\Users\marss\.caffe\dependencies\libraries_v140_x64_py27_1.1.0\libraries\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\lib\x64;C:\Users\marss\.caffe\dependencies\libraries_v140_x64_py27_1.1.0\libraries\x64\vc14\lib;D:\work\OpenCV\caffe\build\lib\Release;$(LibraryPath)</LibraryPath>
-    <TargetName>$(ProjectName)D</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(SolutionDir)common_lib;C:\OpenCV3.4\dlib-19.10;D:\work\OpenCV\libfacedetection\include;C:\OpenCV3.4\opencv\build\include\opencv2;C:\OpenCV3.4\opencv\build\include\opencv;C:\OpenCV3.4\opencv\build\include;$(HOMEDRIVE)$(HOMEPATH)\.caffe\dependencies\libraries_v140_x64_py27_1.1.0\libraries\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\include;D:\work\OpenCV\caffe\build\include;D:\work\OpenCV\caffe\include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)$(Platform)\$(Configuration);D:\work\OpenCV\libfacedetection\lib;C:\OpenCV3.4\dlib-19.10\build\x64\bin;C:\OpenCV3.4\opencv\build\x64\vc14\lib;$(HOMEDRIVE)$(HOMEPATH)\.caffe\dependencies\libraries_v140_x64_py27_1.1.0\libraries\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\lib\x64;$(HOMEDRIVE)$(HOMEPATH)\.caffe\dependencies\libraries_v140_x64_py27_1.1.0\libraries\x64\vc14\lib;D:\work\OpenCV\caffe\build\lib\Release;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SolutionDir)common_lib;$(SolutionDir)MachineVisionLib;C:\OpenCV3.4\opencv\build\include\opencv2;C:\OpenCV3.4\opencv\build\include\opencv;C:\OpenCV3.4\opencv\build\include;D:\work\OpenCV\caffe\build\include;D:\work\OpenCV\caffe\include;$(HOMEDRIVE)$(HOMEPATH)\.caffe\dependencies\libraries_v140_x64_py27_1.1.0\libraries\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)$(Platform)\$(Configuration);C:\OpenCV3.4\opencv\build\x64\vc14\lib;D:\work\OpenCV\caffe\build\lib\Release;$(HOMEDRIVE)$(HOMEPATH)\.caffe\dependencies\libraries_v140_x64_py27_1.1.0\libraries\lib;$(HOMEDRIVE)$(HOMEPATH)\.caffe\dependencies\libraries_v140_x64_py27_1.1.0\libraries\x64\vc14\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;MACHINEVISIONLIB_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
@@ -104,17 +101,13 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_DEBUG;_WINDOWS;_USRDLL;MACHINEVISIONLIB_EXPORTS;GLOG_NO_ABBREVIATED_SEVERITIES;CPU_ONLY;NO_STRICT;DLIB_HAVE_SSE2;DLIB_DISABLE_ASSERTS;DLIB_JPEG_SUPPORT;DLIB_PNG_SUPPORT;DLIB_HAVE_AVX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>common_libd.lib;opencv_world340d.lib;caffe.lib;caffeproto.lib;caffehdf5_D.lib;caffehdf5_hl_D.lib;gflagsd.lib;glogd.lib;leveldbd.lib;libprotobufd.lib;libopenblas.dll.a;lmdbd.lib;boost_thread-vc140-mt-gd-1_61.lib;compute_image_mean.lib;convert_imageset.lib;libfacedetect-x64.lib;dlib19.10.0_64bit_msvc1900D.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <PostBuildEvent>
-      <Command>copy $(SolutionDir)$(Platform)\$(Configuration)\$(ProjectName)D.dll $(SolutionDir)$(Platform)\binD\$(ProjectName)D.dll</Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -123,11 +116,11 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;MACHINEVISIONLIB_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -140,50 +133,29 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NDEBUG;_WINDOWS;_USRDLL;MACHINEVISIONLIB_EXPORTS;GLOG_NO_ABBREVIATED_SEVERITIES;CPU_ONLY;NO_STRICT;DLIB_HAVE_SSE2;DLIB_DISABLE_ASSERTS;DLIB_JPEG_SUPPORT;DLIB_PNG_SUPPORT;DLIB_HAVE_AVX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;GLOG_NO_ABBREVIATED_SEVERITIES;CPU_ONLY;NO_STRICT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>common_lib.lib;opencv_world340.lib;caffe.lib;caffeproto.lib;caffehdf5.lib;caffehdf5_hl.lib;gflags.lib;glog.lib;leveldb.lib;libprotobuf.lib;libopenblas.dll.a;lmdb.lib;compute_image_mean.lib;convert_imageset.lib;libfacedetect-x64.lib;dlib19.10.0_64bit_msvc1900.lib;boost_thread-vc140-mt-1_61.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>common_lib.lib;MachineVisionLib.lib;opencv_world340.lib;caffe.lib;caffeproto.lib;caffehdf5.lib;caffehdf5_hl.lib;gflags.lib;glog.lib;leveldb.lib;libprotobuf.lib;libopenblas.dll.a;lmdb.lib;compute_image_mean.lib;convert_imageset.lib;boost_thread-vc140-mt-1_61.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(SolutionDir)$(Platform)\$(Configuration)\$(ProjectName).dll $(SolutionDir)$(Platform)\bin\$(ProjectName).dll</Command>
+      <Command>copy $(SolutionDir)$(Platform)\$(Configuration)\$(ProjectName).exe $(SolutionDir)$(Platform)\bin\$(ProjectName).exe</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="FaceRecognition.h" />
-    <ClInclude Include="ImagePreprocess.h" />
-    <ClInclude Include="MachineVisionLib.h" />
-    <ClInclude Include="MathAlgorithmLib.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="dllmain.cpp">
-      <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</CompileAsManaged>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-      </PrecompiledHeader>
-      <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</CompileAsManaged>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </PrecompiledHeader>
-      <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</CompileAsManaged>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-      </PrecompiledHeader>
-      <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</CompileAsManaged>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </PrecompiledHeader>
-    </ClCompile>
-    <ClCompile Include="FaceRecognition.cpp" />
-    <ClCompile Include="ImagePreprocess.cpp" />
-    <ClCompile Include="MachineVisionLib.cpp" />
-    <ClCompile Include="MathAlgorithmLib.cpp" />
+    <ClCompile Include="ConveyorBeltTearingDetector.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
