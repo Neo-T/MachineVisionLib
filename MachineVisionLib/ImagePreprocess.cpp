@@ -304,6 +304,11 @@ void ImgGroupedContour::Preprocess(Mat& matGrayImg, DOUBLE dblThreshold1, DOUBLE
 	//* 寻找轮廓，相关资料：
 	//* https://blog.csdn.net/dcrmg/article/details/51987348
 	findContours(matGrayImg, vContours, vHierarchy, RETR_TREE, CV_CHAIN_APPROX_NONE, Point(0, 0));
+	if (!vContours.size())
+	{
+		pstMallocMemForLink = NULL;
+		throw runtime_error("Not found contour!");
+	}
 
 	pstMallocMemForLink = pstNotGroupedContourLink = (PST_CONTOUR_NODE)malloc(vContours.size() * sizeof(ST_CONTOUR_NODE));
 	if(!pstMallocMemForLink)
@@ -453,7 +458,7 @@ void ImgGroupedContour::GetDiagonalPointsOfGroupContours(INT nMinContourNumThres
 	{
 		ST_CONTOUR_GROUP stContourGroup = vGroupContour[i];
 
-		//cout << "Contour Num: " << stContourGroup.nContourNum << endl;
+		cout << "Contour Num: " << stContourGroup.nContourNum << endl;
 
 		if (stContourGroup.nContourNum < nMinContourNumThreshold)
 			continue;
@@ -464,7 +469,7 @@ void ImgGroupedContour::GetDiagonalPointsOfGroupContours(INT nMinContourNumThres
 		PST_CONTOUR_NODE pstGroupNode = vGroupContour[i].pstContourLink;
 		while (pstGroupNode != NULL)
 		{
-			//cout << pstGroupNode->nIndex << " ";
+			cout << pstGroupNode->nIndex << " ";
 
 			for (INT j = 0; j < (*pstGroupNode->pvecContour).size(); j++)
 			{
@@ -523,5 +528,19 @@ void ImgGroupedContour::RectMarkGroupContours(Mat& matMarkImg, BOOL blIsMergeOve
 		ST_DIAGONAL_POINTS stRect = vRects[i];
 		rectangle(matMarkImg, stRect.point_left, stRect.point_right, scalar, 1);
 	}
+}
+
+//* 调整亮度均值到参数dblMeanVal指定的值，该算法首先计算图像现在的亮度均值mean，然后
+//* d = dblMeanVal - mean
+//* 最后，所有像素增加灰度值d，调整完毕
+//* 参数dblAlpha指定对比度增益系数，缺省值为1.0，保持原图像对比度不变
+//* 注意，除亮度均值改变外，matDstImg的其它属性与原图一致
+IMGPREPROC void imgpreproc::AdjustBrightnessMean(Mat& matSrcImg, Mat& matDstImg, INT nMeanVal, DOUBLE dblAlpha)
+{
+	cvtColor(matSrcImg, matDstImg, CV_RGB2GRAY);
+
+	Scalar scalar = mean(matDstImg);
+	signed int nDistance = nMeanVal - scalar.val[0];
+	matSrcImg.convertTo(matDstImg, matSrcImg.type(), dblAlpha, nDistance);
 }
 
