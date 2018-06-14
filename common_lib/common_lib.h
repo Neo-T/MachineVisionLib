@@ -23,6 +23,30 @@ typedef struct _ST_MEM_FILE_ {
 	void *pvMem;
 } ST_MEM_FILE, *PST_MEM_FILE;
 
+class COMMON_LIB_API PerformanceTimer {
+public:
+	PerformanceTimer() {
+		QueryPerformanceFrequency(&uniOSFreq);
+	}
+
+	void start(void) {
+		QueryPerformanceCounter(&uniStartCount);
+	}
+
+	//* 返回单位为微秒
+	DOUBLE end(void) {
+		LARGE_INTEGER uniStopCount;
+
+		QueryPerformanceCounter(&uniStopCount);
+
+		return (1e6 / ((DOUBLE)uniOSFreq.QuadPart)) * (DOUBLE)(uniStopCount.QuadPart - uniStartCount.QuadPart);
+	}
+
+private:
+	LARGE_INTEGER uniOSFreq;
+	LARGE_INTEGER uniStartCount;
+};
+
 //* 公共函数库
 namespace common_lib {
 	COMMON_LIB_API HANDLE CLIBOpenDirectory(const CHAR *pszDirectName);

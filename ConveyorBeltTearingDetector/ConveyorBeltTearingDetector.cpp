@@ -27,6 +27,8 @@
 #pragma comment( linker, "/subsystem:windows /entry:mainCRTStartup" )
 #endif
 
+#define PERFORMANCE_MEASURE 1
+
 int _tmain(int argc, _TCHAR* argv[])
 {
 	if (argc != 2)
@@ -44,6 +46,15 @@ int _tmain(int argc, _TCHAR* argv[])
 		exit(-1);
 	}
 
+#if PERFORMANCE_MEASURE
+	DOUBLE dblSpentTime = 0.0;
+	PerformanceTimer perform_timer;
+#endif
+
+#if PERFORMANCE_MEASURE
+	perform_timer.start();
+#endif
+
 	//* 样本图片采集的并不好，需要人为指定ROI，去掉地板等无用区域
 	matPreprocImg = matSrcImg(Rect(10, 50, matSrcImg.cols - 130, matSrcImg.rows - 100));
 
@@ -52,8 +63,17 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	//* 对亮度较低和较高的的图像调整到平均线
 	imgpreproc::AdjustBrightnessMean(matSrcImg, matPreprocImg, 160, 1.2);
+
+#if PERFORMANCE_MEASURE
+	dblSpentTime += perform_timer.end();
+#endif
+	
 	imshow("亮度调整结果", matPreprocImg);
 	waitKey(0);
+
+#if PERFORMANCE_MEASURE
+	perform_timer.start();
+#endif
 
 	//* 在对图像进行裂缝检测之前先处理一下，实测对比度均衡算法效果不错	
 	cvtColor(matPreprocImg, matGrayImg, COLOR_BGR2GRAY);
@@ -63,15 +83,28 @@ int _tmain(int argc, _TCHAR* argv[])
 	morphologyEx(matPreprocImg, matGrayImg, MORPH_ERODE, element);
 	morphologyEx(matGrayImg, matPreprocImg, MORPH_OPEN, element);
 
+#if PERFORMANCE_MEASURE
+	dblSpentTime += perform_timer.end();
+#endif
+
 	imshow("预处理结果", matPreprocImg);
 	waitKey(0);
 
 	try {
+
+#if PERFORMANCE_MEASURE
+		perform_timer.start();
+#endif
 		//* 对检测到的轮廓分组，找出裂缝
 		ImgGroupedContour img_grp_contour = ImgGroupedContour(matPreprocImg, 90, 90 * 2, 3, TRUE);
 		img_grp_contour.GroupContours(10);
 		img_grp_contour.GetDiagonalPointsOfGroupContours(5);
 		img_grp_contour.RectMarkGroupContours(matSrcImg);
+
+#if PERFORMANCE_MEASURE
+		dblSpentTime += perform_timer.end();
+		cout << "花费的时间：" <<  dblSpentTime << "微秒" << endl;
+#endif
 
 		imshow("裂缝检测结果", matSrcImg);
 		waitKey(0);
