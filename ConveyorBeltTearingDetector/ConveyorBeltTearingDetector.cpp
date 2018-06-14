@@ -51,7 +51,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	pyrDown(matPreprocImg, matSrcImg, Size(matPreprocImg.cols / 2, matPreprocImg.rows / 2));
 
 	//* 对亮度较低和较高的的图像调整到平均线
-	imgpreproc::AdjustBrightnessMean(matSrcImg, matPreprocImg, 160);
+	imgpreproc::AdjustBrightnessMean(matSrcImg, matPreprocImg, 160, 1.2);
 	imshow("亮度调整结果", matPreprocImg);
 	waitKey(0);
 
@@ -69,12 +69,14 @@ int _tmain(int argc, _TCHAR* argv[])
 	try {
 		//* 对检测到的轮廓分组，找出裂缝
 		ImgGroupedContour img_grp_contour = ImgGroupedContour(matPreprocImg, 90, 90 * 2, 3, TRUE);
-		img_grp_contour.GroupContours(20);
+		img_grp_contour.GroupContours(10);
 		img_grp_contour.GetDiagonalPointsOfGroupContours(5);
 		img_grp_contour.RectMarkGroupContours(matSrcImg);
 
 		imshow("裂缝检测结果", matSrcImg);
 		waitKey(0);
+
+		destroyAllWindows();
 	}
 	catch (runtime_error err) {
 		cout << err.what() << endl;
