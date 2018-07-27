@@ -146,7 +146,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>common_lib.lib;MachineVisionLib.lib;opencv_world340.lib;caffe.lib;caffeproto.lib;caffehdf5.lib;caffehdf5_hl.lib;gflags.lib;glog.lib;leveldb.lib;libprotobuf.lib;libopenblas.dll.a;lmdb.lib;compute_image_mean.lib;convert_imageset.lib;boost_thread-vc140-mt-1_61.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>common_lib.lib;MachineVisionLib.lib;opencv_world341.lib;caffe.lib;caffeproto.lib;caffehdf5.lib;caffehdf5_hl.lib;gflags.lib;glog.lib;leveldb.lib;libprotobuf.lib;libopenblas.dll.a;lmdb.lib;compute_image_mean.lib;convert_imageset.lib;boost_thread-vc140-mt-1_61.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copy $(SolutionDir)$(Platform)\$(Configuration)\$(ProjectName).exe $(SolutionDir)$(Platform)\bin\$(ProjectName).exe</Command>
