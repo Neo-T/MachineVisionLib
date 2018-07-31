@@ -21,6 +21,8 @@
 #include <iostream>
 #include <vector>
 
+#define INVALID_INDEX	-1	//* 无效索引
+
 using namespace std;
 
 //* 内存文件

@@ -13,6 +13,7 @@
 #include "MachineVisionLib.h"
 #include "MathAlgorithmLib.h"
 #include "ImagePreprocess.h"
+#include "ImageHandler.h"
 #include "ImageMagic.h"
 
 #if NEED_GPU
@@ -31,7 +32,8 @@ HWND hWndStatic;					//* ¾²Ì¬ÎÄ±¾¿ò£¬ÓÃÓÚOCVÏÔÊ¾´°¿ÚµÄ¸¸´°¿Ú
 CHAR szTitle[MAX_LOADSTRING];		//* ±êÌâÀ¸ÎÄ±¾
 CHAR szWindowClass[MAX_LOADSTRING];	//* Ö÷´°¿ÚÀàÃû
 CHAR szImgFileName[MAX_PATH + 1];	//* ´ò¿ªµÄÍ¼ÏñÎÄ¼şÃû
-Mat mOpenedImg;
+Mat mOpenedImg;						//* ¶ÁÈëµÄÔ­Ê¼Í¼Æ¬Êı¾İ
+Mat mResultImg;						//* ´¦ÀíºóµÄ½á¹ûÊı¾İ
 
 // ´Ë´úÂëÄ£¿éÖĞ°üº¬µÄº¯ÊıµÄÇ°ÏòÉùÃ÷: 
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -46,6 +48,7 @@ BOOL GetImageFile(CHAR *pszImgFileName, UINT unImgFileNameSize);	//* Ñ¡ÔñÒ»¸öÍ¼Ï
 void OpenImgeFile(CHAR *pszImgFileName);							//* ´ò¿ª²¢ÔÚÖ÷´°¿Ú»æÖÆ¸ÃÍ¼Æ¬
 void SetWindowSize(INT nWidth, INT nHeight);						//* µ÷Õû´°¿Ú´óĞ¡
 void DrawImage(void);												//* »æÖÆÍ¼Æ¬
+
 //* ----------------------------------------------------------------------
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
@@ -87,8 +90,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     return (int) msg.wParam;
 }
-
-
 
 //
 //  º¯Êı: MyRegisterClass()
@@ -186,6 +187,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					//* µÈ±ÈÀıÏÔÊ¾Í¼Æ¬£¬³¬´óÍ¼Æ¬»áµÈ±ÈÀıËõĞ¡£¬Ğ¡Í¼ÔòÎ¬³Ö1£º1±ÈÀı
 					OpenImgeFile(szImgFileName);
 				}
+				break;
+
+			case IDM_CUT:
+				IMGPROC_Cut();
 				break;
 
             case IDM_ABOUT:
@@ -358,3 +363,4 @@ void DrawImage(void)
 
 	imshow(szTitle, mOpenedImg);
 }
+
