@@ -2,27 +2,20 @@
 //
 
 #include "stdafx.h"
-#include <wtypes.h>
 #include <Commdlg.h>
 #include <shellapi.h>
 #include <stdio.h>
 #include <string.h>
+#include <fcntl.h>
 #include <io.h>
 #include <vector>
 #include "common_lib.h"
 #include "MachineVisionLib.h"
-#include "MathAlgorithmLib.h"
-#include "ImagePreprocess.h"
 #include "ImageHandler.h"
 #include "ImageMagic.h"
 
-#if NEED_GPU
-#pragma comment(lib,"cublas.lib")
-#pragma comment(lib,"cuda.lib")
-#pragma comment(lib,"cudart.lib")
-#pragma comment(lib,"curand.lib")
-#pragma comment(lib,"cudnn.lib")
-#endif
+//* ½øÖÆ_sÖ®ÀàµÄ°²È«¾¯¸æ
+#pragma warning(disable:4996)
 
 #define MAX_LOADSTRING 100
 
@@ -30,10 +23,10 @@ HINSTANCE hInst;					//* µ±Ç°ÊµÀý
 HWND hWndMain;						//* Ö÷´°¿Ú¾ä±ú
 HWND hWndStatic;					//* ¾²Ì¬ÎÄ±¾¿ò£¬ÓÃÓÚOCVÏÔÊ¾´°¿ÚµÄ¸¸´°¿Ú
 CHAR szTitle[MAX_LOADSTRING];		//* ±êÌâÀ¸ÎÄ±¾
+CHAR szMainWindowTitle[MAX_LOADSTRING + MAX_PATH];	//* ÔËÐÐ×´Ì¬³ÌÐò±êÌâÀ¸
 CHAR szWindowClass[MAX_LOADSTRING];	//* Ö÷´°¿ÚÀàÃû
 CHAR szImgFileName[MAX_PATH + 1];	//* ´ò¿ªµÄÍ¼ÏñÎÄ¼þÃû
-Mat mOpenedImg;						//* ¶ÁÈëµÄÔ­Ê¼Í¼Æ¬Êý¾Ý
-Mat mResultImg;						//* ´¦ÀíºóµÄ½á¹ûÊý¾Ý
+Image *pobjOpenedImage;				//* µ±Ç°ÕýÔÚ±à¼­µÄÍ¼Ïñ
 
 // ´Ë´úÂëÄ£¿éÖÐ°üº¬µÄº¯ÊýµÄÇ°ÏòÉùÃ÷: 
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -48,7 +41,11 @@ BOOL GetImageFile(CHAR *pszImgFileName, UINT unImgFileNameSize);	//* Ñ¡ÔñÒ»¸öÍ¼Ï
 void OpenImgeFile(CHAR *pszImgFileName);							//* ´ò¿ª²¢ÔÚÖ÷´°¿Ú»æÖÆ¸ÃÍ¼Æ¬
 void SetWindowSize(INT nWidth, INT nHeight);						//* µ÷Õû´°¿Ú´óÐ¡
 void DrawImage(void);												//* »æÖÆÍ¼Æ¬
+void ForcedUpdateCleintRect(HWND hWnd);								//* Ç¿ÖÆ¸üÐÂÖ¸¶¨´°¿ÚµÄÓÃ»§½»»¥ÇøÓò
+void EnableMenuItemForEdit(void);
 
+//*	Í¼Ïñ´¦ÀíÏà¹ØµÄº¯Êý
+void IMGHANDLER_Transformation(void);		//* Í¸ÊÓ±ä»»
 //* ----------------------------------------------------------------------
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
@@ -66,6 +63,18 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     LoadString(hInstance, IDC_IMAGEMAGIC, szWindowClass, MAX_LOADSTRING);
     MyRegisterClass(hInstance);
 
+#if OPEN_DEBUG_CONSOLE
+	if (!AllocConsole())
+	{
+		MessageBox(NULL, "ÎÞ·¨Îª½ø³Ì·ÖÅäÒ»¸öµ÷ÊÔ¿ØÖÆÌ¨£¬ÇëÈ·ÈÏ¸Ã½ø³ÌÓµÓÐÏà¹ØÈ¨ÏÞ£¬»òÕßÁªÏµNeo£¡", "´íÎó", MB_ICONERROR | MB_OK);
+
+		return FALSE;
+	}
+
+	freopen("CONOUT$", "w", stdout);
+	freopen("CONOUT$", "w", stderr);
+#endif
+
     // Ö´ÐÐÓ¦ÓÃ³ÌÐò³õÊ¼»¯: 
     if (!InitInstance (hInstance, nCmdShow))
     {
@@ -73,6 +82,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     }
 
 	hWndStatic = NULL;
+	pobjOpenedImage = nullptr;
 
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_IMAGEMAGIC));
 
@@ -87,6 +97,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             DispatchMessage(&msg);
         }
     }
+
+	if (pobjOpenedImage)
+		delete pobjOpenedImage;
+
+#if OPEN_DEBUG_CONSOLE	
+	FreeConsole();
+#endif
 
     return (int) msg.wParam;
 }
@@ -131,7 +148,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
    hInst = hInstance; // ½«ÊµÀý¾ä±ú´æ´¢ÔÚÈ«¾Ö±äÁ¿ÖÐ
 
-   hWndMain = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+   hWndMain = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPED | WS_SYSMENU | WS_MINIMIZEBOX,
       CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
 
    if (!hWndMain)
@@ -189,8 +206,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				}
 				break;
 
-			case IDM_CUT:
-				IMGPROC_Cut();
+			case IDM_TRANSFORMATION:
+				IMGHANDLER_Transformation();
 				break;
 
             case IDM_ABOUT:
@@ -248,9 +265,9 @@ void CreateTextStatic(void)
 {
 	if (hWndStatic != NULL)
 	{
-		//ShowWindow(hWndStatic, SW_HIDE);
-		//DestroyWindow(hWndStatic);
-		return;
+		destroyAllWindows();
+		ShowWindow(hWndStatic, SW_HIDE);
+		DestroyWindow(hWndStatic);		
 	}
 
 	RECT rect_client;
@@ -264,9 +281,9 @@ void CreateTextStatic(void)
 								(HMENU)NULL,
 								hInst, NULL);	
 
-	namedWindow(szTitle, WINDOW_NORMAL);
+	namedWindow(szMainWindowTitle, WINDOW_NORMAL);
 
-	HWND hWndOCVImgShow = (HWND)cvGetWindowHandle(szTitle);
+	HWND hWndOCVImgShow = (HWND)cvGetWindowHandle(szMainWindowTitle);
 	HWND hWndParentOCVImgShow = GetParent(hWndOCVImgShow);
 	SetParent(hWndOCVImgShow, hWndStatic);		//* ½«¸¸´°¿ÚÇÐ»»ÎªSTATIC¿Ø¼þ
 	ShowWindow(hWndParentOCVImgShow, SW_HIDE);	//* Òþ²ØOpenCVµÄ×ÔÓÐ´°¿Ú
@@ -299,33 +316,32 @@ BOOL GetImageFile(CHAR *pszImgFileName, UINT unImgFileNameSize)
 //* ´ò¿ª²¢ÔÚÖ÷´°¿Ú»æÖÆ¸ÃÍ¼Æ¬
 void OpenImgeFile(CHAR *pszImgFileName)
 {
-	INT nImgWidth, nImgHeight, nPCWidth, nPCHeight;
-
-	CreateTextStatic();
-	
-	//* ¼ÓÔØÍ¼Ïñ
-	Mat mSrcImg;
-	mSrcImg = imread(pszImgFileName);
-	if (mSrcImg.empty())
+	//* ´ò¿ªÍ¼Ïñ
+	Image *pobjImage = new Image();
+	if (!pobjImage->open(pszImgFileName))
 	{
-		MessageBox(hWndMain, "ÎÞ·¨¶ÁÈ¡Í¼Æ¬ÎÄ¼þ£¬ÇëÈ·ÈÏÍ¼Æ¬ÎÄ¼þ´æÔÚÇÒ¸ñÊ½ÕýÈ·£¡", "´íÎó", MB_OK);
+		MessageBox(hWndMain, "ÎÞ·¨¶ÁÈ¡Í¼Æ¬ÎÄ¼þ£¬ÇëÈ·ÈÏÍ¼Æ¬ÎÄ¼þ´æÔÚÇÒ¸ñÊ½ÕýÈ·£¡", "´íÎó", MB_ICONERROR | MB_OK);
 		return;
 	}
 
-	nImgWidth = mSrcImg.cols;
-	nImgHeight = mSrcImg.rows;
+	//* ÏÈÉ¾³ýÔ­ÏÈµÄÍ¼Ïñ
+	if (pobjOpenedImage)
+		delete pobjOpenedImage;
 
-	//* ¿´¿´ÊÇ·ñ³¬¹ýµ±Ç°ÆÁÄ»´óÐ¡
-	nPCWidth = GetSystemMetrics(SM_CXSCREEN);
-	nPCHeight = GetSystemMetrics(SM_CYSCREEN);
-	if (nImgWidth > nPCWidth || nImgHeight > nPCHeight)
-	{
-		nImgWidth /= 2;
-		nImgHeight /= 2;
-	}
-	SetWindowSize(nImgWidth, nImgHeight);
+	pobjOpenedImage = pobjImage;
 
-	mSrcImg.copyTo(mOpenedImg);
+	//* ¸ü¸ÄÖ÷³ÌÐò±êÌâÀ¸£¬½«µ±Ç°´ò¿ªµÄÍ¼Æ¬ÎÄ¼þÂ·¾¶ÏÔÊ¾µ½±êÌâÀ¸ÖÐ
+	sprintf(szMainWindowTitle, "%s - %s", szTitle, pszImgFileName);
+	SetWindowText(hWndMain, szMainWindowTitle);
+
+	//* Ë³Ðò²»ÄÜµ÷»»£¬±ØÐëÏÈÉèÖÃÍê±êÌâÀ¸ºóÔÙÖ´ÐÐÕâ¾ä£¬Ö»ÓÐÈç´Ë²ÅÄÜ½«Í¼Æ¬ÏÔÊ¾ÔÚWINDOWSµÄSTATIC¿Ø¼þÉÏ
+	CreateTextStatic();
+
+	//* Ê¹ÄÜ±à¼­²Ëµ¥Ïî
+	EnableMenuItemForEdit();
+
+	//* Ç¿ÖÆ¸üÐÂ£¬²»ÐèÒªµ÷ÓÃ¸Ãº¯ÊýÁË£¬ÒòÎªÇ°ÃæÖØ½¨ÁËSTATIC¿Ø¼þ£¬OS¿Ï¶¨»áÖ÷¶¯ÖØ»æ¸ÃÇøÓòµÄ
+	//ForcedUpdateCleintRect(hWndMain);
 }
 
 //* ½«´°¿Úµ÷ÕûÖÁÓëÍ¼Æ¬Ò»ÑùµÄ´óÐ¡
@@ -352,15 +368,75 @@ void SetWindowSize(INT nWidth, INT nHeight)
 	//MoveWindow(hWndMain, (nPCWidth - nWindowWidth) / 2, (nPCHeight - nWindowHeight) / 2, nWindowWidth, nWindowHeight, TRUE);
 	SetWindowPos(hWndStatic, NULL, 0, 0, nWidth, nHeight, SWP_NOMOVE | SWP_NOZORDER);
 
-	resizeWindow(szTitle, nWidth, nHeight);
+	resizeWindow(szMainWindowTitle, nWidth, nHeight);
 }
 
 //* »æÖÆÍ¼Æ¬
 void DrawImage(void)
 {
-	if (mOpenedImg.empty())
-		return;
+	if (pobjOpenedImage)
+	{
+		INT nImgWidth, nImgHeight, nPCWidth, nPCHeight;
+		
+		nImgWidth = pobjOpenedImage->GetImgWidth();
+		nImgHeight = pobjOpenedImage->GetImgHeight();
 
-	imshow(szTitle, mOpenedImg);
+		//* ¿´¿´ÊÇ·ñ³¬¹ýµ±Ç°ÆÁÄ»´óÐ¡
+		nPCWidth = GetSystemMetrics(SM_CXSCREEN);
+		nPCHeight = GetSystemMetrics(SM_CYSCREEN);
+		if (nImgWidth > nPCWidth || nImgHeight > nPCHeight)
+		{
+			DOUBLE dblScaleFactor;
+
+			//* Èç¹û¿í¶ÈÏà²î´ó£¬ÔòÒÔ¿í¶È×÷Îª¼ÆËãËõ·ÅÒò×ÓµÄ»ùÊý£¬·ñÔò£¬¸ß¶È×÷Îª»ùÊý
+			if (nImgWidth - nPCWidth > nImgHeight - nPCHeight)
+			{
+				dblScaleFactor = (((DOUBLE)nPCWidth) / 2.0) / (DOUBLE)nImgWidth;
+			}
+			else
+				dblScaleFactor = (((DOUBLE)nPCHeight) / 2.0) / (DOUBLE)nImgHeight;			
+			
+			nImgWidth *= dblScaleFactor;
+			nImgHeight *= dblScaleFactor;			
+
+			pobjOpenedImage->SetScaleFactor(dblScaleFactor);
+		}
+		else
+			pobjOpenedImage->SetScaleFactor(1.0);
+
+		//* µ÷ÕûÏÔÊ¾ÇøÓò´óÐ¡
+		SetWindowSize(nImgWidth, nImgHeight);
+
+		pobjOpenedImage->show(szMainWindowTitle);
+	}
+}
+
+//* Ç¿ÖÆ¸üÐÂÖ¸¶¨´°¿ÚµÄÓÃ»§½»»¥ÇøÓò
+void ForcedUpdateCleintRect(HWND hWnd)
+{
+	RECT rect_client;
+	GetClientRect(hWndMain, &rect_client);
+
+	InvalidateRect(hWndMain, &rect_client, TRUE);
+}
+
+void EnableMenuItemForEdit(void)
+{
+	EnableMenuItem(GetMenu(hWndMain), IDM_SAVE, MF_ENABLED);
+	EnableMenuItem(GetMenu(hWndMain), IDM_TRANSFORMATION, MF_ENABLED);
+	EnableMenuItem(GetMenu(hWndMain), IDM_MAP, MF_ENABLED);
+	EnableMenuItem(GetMenu(hWndMain), IDM_SEPARATE, MF_ENABLED);
+	EnableMenuItem(GetMenu(hWndMain), IDM_CHANGE_BG, MF_ENABLED);
+}
+
+//* ¶ÔÓÃ»§Ñ¡ÔñµÄ²¿·ÖÍ¼ÏñÇøÓò½øÐÐÍ¸ÊÓ±ä»»
+void IMGHANDLER_Transformation(void)
+{
+	ImagePerspectiveTransformation objImgPerspecTrans;
+
+	objImgPerspecTrans.process(pobjOpenedImage->GetSrcImg(), 
+								pobjOpenedImage->GetResultImg(), 
+								pobjOpenedImage->GetShowImg(), 
+								pobjOpenedImage->GetScaleFactor());
 }
 

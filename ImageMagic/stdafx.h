@@ -7,6 +7,8 @@
 
 #include "targetver.h"
 
+#define OPEN_DEBUG_CONSOLE 1	//* 打开调试控制台输出
+
 #define WIN32_LEAN_AND_MEAN             // 从 Windows 头中排除极少使用的资料
 // Windows 头文件:
 //* 解决DialogBox()函数报：
@@ -16,11 +18,13 @@
 #include <windows.h>
 #undef STRICT
 
+//* 注意一定要包含这个头文件，DOUBLE等数据类型的定义均在此文件中，否则编译时会报common_lib.h中end()重载错误
+#include <wtypes.h>
+
 // C 运行时头文件
 #include <stdlib.h>
 #include <malloc.h>
 #include <memory.h>
 #include <tchar.h>
-
 
 // TODO:  在此处引用程序需要的其他头文件
