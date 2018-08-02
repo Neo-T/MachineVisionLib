@@ -42,11 +42,28 @@ void OpenImgeFile(CHAR *pszImgFileName);							//* 打开并在主窗口绘制该图片
 void SetWindowSize(INT nWidth, INT nHeight);						//* 调整窗口大小
 void DrawImage(void);												//* 绘制图片
 void ForcedUpdateCleintRect(HWND hWnd);								//* 强制更新指定窗口的用户交互区域
-void EnableMenuItemForEdit(void);
+void EnableMenuItemForEdit(void);									//* 使能编辑菜单
+void SaveEditedImg(void);
+
+//* 为图像处理菜单提供的功能入口函数
+void ImageHandler(INT nMenuID);
 
 //*	图像处理相关的函数
 void IMGHANDLER_Transformation(void);		//* 透视变换
 //* ----------------------------------------------------------------------
+
+//* 图像处理相关的菜单ID数组
+static INT naImgHandleMenuList[] = { 
+	IDM_TRANSFORMATION, 
+	IDM_MAP, 
+	IDM_SEPARATE, 
+	IDM_CHANGE_BG 
+};
+
+//* 储量处理相关的函数均放到此数组中
+static ST_IMGHANDLER staImgHandlerList[] = {
+	{ IDM_TRANSFORMATION , IMGHANDLER_Transformation }
+};
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -187,6 +204,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 	//* 文件拖动通知
 	case WM_DROPFILES:
+		SaveEditedImg();
 		DragQueryFile((HDROP)wParam, 0, szImgFileName, sizeof(szImgFileName));
 		OpenImgeFile(szImgFileName);
 		DragFinish((HDROP)wParam);
@@ -199,6 +217,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             switch (wmId)
             {
 			case IDM_OPEN:
+				SaveEditedImg();
+
 				if (GetImageFile(szImgFileName, sizeof(szImgFileName)))
 				{
 					//* 等比例显示图片，超大图片会等比例缩小，小图则维持1：1比例
@@ -206,9 +226,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				}
 				break;
 
-			case IDM_TRANSFORMATION:
-				IMGHANDLER_Transformation();
+			case IDM_SAVE:
 				break;
+
+			//case IDM_TRANSFORMATION:
+			//case IDM_MAP:
+			//case IDM_SEPARATE:
+			//case IDM_CHANGE_BG:
+			//	ImageHandler(wmId);
+			//	break;
 
             case IDM_ABOUT:
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
@@ -219,6 +245,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 break;
 
             default:
+				ImageHandler(wmId);
                 return DefWindowProc(hWnd, message, wParam, lParam);
             }
         }
@@ -232,6 +259,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_DESTROY:
+		SaveEditedImg();
         PostQuitMessage(0);
         break;
     default:
@@ -340,6 +368,8 @@ void OpenImgeFile(CHAR *pszImgFileName)
 	//* 使能编辑菜单项
 	EnableMenuItemForEdit();
 
+	pobjOpenedImage->SetEditFlag(FALSE);
+
 	//* 强制更新，不需要调用该函数了，因为前面重建了STATIC控件，OS肯定会主动重绘该区域的
 	//ForcedUpdateCleintRect(hWndMain);
 }
@@ -382,8 +412,8 @@ void DrawImage(void)
 		nImgHeight = pobjOpenedImage->GetImgHeight();
 
 		//* 看看是否超过当前屏幕大小
-		nPCWidth = GetSystemMetrics(SM_CXSCREEN);
-		nPCHeight = GetSystemMetrics(SM_CYSCREEN);
+		nPCWidth = GetSystemMetrics(SM_CXSCREEN) / 2;
+		nPCHeight = GetSystemMetrics(SM_CYSCREEN) / 2;
 		if (nImgWidth > nPCWidth || nImgHeight > nPCHeight)
 		{
 			DOUBLE dblScaleFactor;
@@ -391,10 +421,10 @@ void DrawImage(void)
 			//* 如果宽度相差大，则以宽度作为计算缩放因子的基数，否则，高度作为基数
 			if (nImgWidth - nPCWidth > nImgHeight - nPCHeight)
 			{
-				dblScaleFactor = (((DOUBLE)nPCWidth) / 2.0) / (DOUBLE)nImgWidth;
+				dblScaleFactor = ((DOUBLE)nPCWidth) / (DOUBLE)nImgWidth;
 			}
 			else
-				dblScaleFactor = (((DOUBLE)nPCHeight) / 2.0) / (DOUBLE)nImgHeight;			
+				dblScaleFactor = ((DOUBLE)nPCHeight) / (DOUBLE)nImgHeight;			
 			
 			nImgWidth *= dblScaleFactor;
 			nImgHeight *= dblScaleFactor;			
@@ -422,11 +452,52 @@ void ForcedUpdateCleintRect(HWND hWnd)
 
 void EnableMenuItemForEdit(void)
 {
-	EnableMenuItem(GetMenu(hWndMain), IDM_SAVE, MF_ENABLED);
-	EnableMenuItem(GetMenu(hWndMain), IDM_TRANSFORMATION, MF_ENABLED);
-	EnableMenuItem(GetMenu(hWndMain), IDM_MAP, MF_ENABLED);
-	EnableMenuItem(GetMenu(hWndMain), IDM_SEPARATE, MF_ENABLED);
-	EnableMenuItem(GetMenu(hWndMain), IDM_CHANGE_BG, MF_ENABLED);
+	for(INT i=0; i<sizeof(naImgHandleMenuList) / sizeof(INT); i++)
+		EnableMenuItem(GetMenu(hWndMain), naImgHandleMenuList[i], MF_ENABLED);
+
+	//* 禁止保存菜单
+	EnableMenuItem(GetMenu(hWndMain), IDM_SAVE, MF_DISABLED);
+}
+
+//* 改变所有菜单的状态，参数unMenuFlags有两个值：MF_ENABLED或MF_DISABLED
+void ChangeAllMenuStatus(UINT unMenuFlags)
+{
+	for (INT i = 0; i<sizeof(naImgHandleMenuList) / sizeof(INT); i++)
+		EnableMenuItem(GetMenu(hWndMain), naImgHandleMenuList[i], unMenuFlags);
+
+	//* 系统关闭菜单
+	EnableMenuItem(GetSystemMenu(hWndMain, FALSE), SC_CLOSE, unMenuFlags);
+}
+
+//* 保存编辑过的图片
+void SaveEditedImg(void)
+{
+
+}
+
+void ImageHandler(INT nMenuID)
+{
+	for (INT i = 0; i < sizeof(staImgHandlerList) / sizeof(ST_IMGHANDLER); i++)
+	{
+		if (nMenuID == staImgHandlerList[i].nMenuID)
+		{
+			ChangeAllMenuStatus(MF_DISABLED);			
+
+			staImgHandlerList[i].pfunHadler();
+
+			//* 变换完毕，更新显示区域
+			ForcedUpdateCleintRect(hWndMain);
+
+			ChangeAllMenuStatus(MF_ENABLED);
+
+			pobjOpenedImage->SetEditFlag(TRUE);
+
+			//* 使能保存菜单
+			EnableMenuItem(GetMenu(hWndMain), IDM_SAVE, MF_ENABLED);
+
+			break;
+		}
+	}
 }
 
 //* 对用户选择的部分图像区域进行透视变换
@@ -434,9 +505,10 @@ void IMGHANDLER_Transformation(void)
 {
 	ImagePerspectiveTransformation objImgPerspecTrans;
 
+	//* 透视变换
 	objImgPerspecTrans.process(pobjOpenedImage->GetSrcImg(), 
 								pobjOpenedImage->GetResultImg(), 
 								pobjOpenedImage->GetShowImg(), 
-								pobjOpenedImage->GetScaleFactor());
+								pobjOpenedImage->GetScaleFactor());	
 }
 

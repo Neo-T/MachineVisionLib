@@ -4,7 +4,7 @@
 
 class Image {
 public:
-	Image() {}
+	Image():o_blIsEdited(FALSE){}
 	~Image() {}
 
 	//* 打开图片
@@ -82,6 +82,16 @@ public:
 		return o_dblScaleFactor;
 	}
 
+	void SetEditFlag(BOOL blFlag)
+	{
+		o_blIsEdited = blFlag;
+	}
+
+	BOOL GetEditFlag(void)
+	{
+		return o_blIsEdited;
+	}
+
 private:
 	Mat o_mOpenedImg;			//* 读入的原始图片数据
 	Mat o_mResultImg;			//* 处理后的结果数据
@@ -89,4 +99,6 @@ private:
 
 	DOUBLE o_dblScaleFactor;	//* 对于超大分辨率的图像需要将其缩小到PC屏幕支持的区域范围内才能显示，否则操作起来会
 								//* 很不方便，该参数记录这个比例因子
+
+	BOOL o_blIsEdited;			//* 是否编辑过
 };
