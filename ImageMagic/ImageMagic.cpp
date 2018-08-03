@@ -43,7 +43,8 @@ void SetWindowSize(INT nWidth, INT nHeight);						//* 调整窗口大小
 void DrawImage(void);												//* 绘制图片
 void ForcedUpdateCleintRect(HWND hWnd);								//* 强制更新指定窗口的用户交互区域
 void EnableMenuItemForEdit(void);									//* 使能编辑菜单
-void SaveEditedImg(void);
+BOOL GetSaveFilePath(CHAR *pszSaveFilePath, UINT unFilePathSize);	//* 打开文件存储对话框获取保存路径
+BOOL SaveEditedImg(BOOL blIsPromptedToSave);						//* 保存编辑后的图像文件
 
 //* 为图像处理菜单提供的功能入口函数
 void ImageHandler(INT nMenuID);
@@ -62,7 +63,15 @@ static INT naImgHandleMenuList[] = {
 
 //* 储量处理相关的函数均放到此数组中
 static ST_IMGHANDLER staImgHandlerList[] = {
-	{ IDM_TRANSFORMATION , IMGHANDLER_Transformation }
+	{ 
+		IDM_TRANSFORMATION , IMGHANDLER_Transformation, 
+		"在要进行透视变换的位置点击鼠标左键，需点选4个位置构成封闭的变换区域\r\n"
+		"可以通过鼠标拖拽方式调整每个点的位置\r\n"
+		"按键Q或Esc结束操作\r\n"
+		"按键D或delete删除已选择的区域\r\n"
+		"按键R逆时针旋转截取的区域\r\n"
+		"按键I实现类似翻书的效果，翻转截取的区域\r\n"
+	}
 };
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
@@ -87,6 +96,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
 		return FALSE;
 	}
+
+	SetConsoleTitle("调试和帮助");
 
 	freopen("CONOUT$", "w", stdout);
 	freopen("CONOUT$", "w", stderr);
@@ -204,10 +215,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 	//* 文件拖动通知
 	case WM_DROPFILES:
-		SaveEditedImg();
-		DragQueryFile((HDROP)wParam, 0, szImgFileName, sizeof(szImgFileName));
-		OpenImgeFile(szImgFileName);
-		DragFinish((HDROP)wParam);
+		if (!SaveEditedImg(TRUE))
+		{
+			DragQueryFile((HDROP)wParam, 0, szImgFileName, sizeof(szImgFileName));
+			OpenImgeFile(szImgFileName);
+			DragFinish((HDROP)wParam);
+		}
+		
 		break;
 
     case WM_COMMAND:
@@ -217,16 +231,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             switch (wmId)
             {
 			case IDM_OPEN:
-				SaveEditedImg();
-
-				if (GetImageFile(szImgFileName, sizeof(szImgFileName)))
+				if (!SaveEditedImg(TRUE))
 				{
-					//* 等比例显示图片，超大图片会等比例缩小，小图则维持1：1比例
-					OpenImgeFile(szImgFileName);
+					if (GetImageFile(szImgFileName, sizeof(szImgFileName)))
+					{
+						//* 等比例显示图片，超大图片会等比例缩小，小图则维持1：1比例
+						OpenImgeFile(szImgFileName);
+					}
 				}
+				
 				break;
 
 			case IDM_SAVE:
+				SaveEditedImg(FALSE);
 				break;
 
 			//case IDM_TRANSFORMATION:
@@ -259,7 +276,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_DESTROY:
-		SaveEditedImg();
+		SaveEditedImg(TRUE);
         PostQuitMessage(0);
         break;
     default:
@@ -336,9 +353,34 @@ BOOL GetImageFile(CHAR *pszImgFileName, UINT unImgFileNameSize)
 	ofn.nMaxFileTitle = 0;
 	ofn.lpstrInitialDir = NULL;
 	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-	ofn.lpstrTitle = _T("打开");
+	ofn.lpstrTitle = _T("请选择一个图片文件");
 
 	return GetOpenFileName(&ofn);
+}
+
+//* 获取文件的存储路径
+BOOL GetSaveFilePath(CHAR *pszSaveFilePath, UINT unFilePathSize)
+{
+	OPENFILENAME ofn;
+
+	//* Initialize OPENFILENAME
+	ZeroMemory(&ofn, sizeof(ofn));
+	ofn.lStructSize = sizeof(ofn);
+	ofn.hwndOwner = hWndMain;
+	ofn.lpstrFile = pszSaveFilePath;
+	ofn.lpstrFile[0] = '\0';
+
+	ofn.nMaxFile = unFilePathSize;
+	ofn.lpstrFilter = _T("Jpeg Files (*.jpg)\0*.jpg\0PNG Files (*.png)\0*.png\0Bitmap Files (*.bmp)\0*.bmp\0\0");
+	ofn.nFilterIndex = 1;
+	ofn.lpstrFileTitle = NULL;
+	ofn.nMaxFileTitle = 0;
+	ofn.lpstrInitialDir = NULL;
+	ofn.Flags = OFN_PATHMUSTEXIST | OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT;	//* 目录必须存在，覆盖文件前发出警告
+	ofn.lpstrTitle = _T("保存到……");
+	ofn.lpstrDefExt = TEXT("jpg");		//* 默认追加的扩展名
+
+	return GetSaveFileName(&ofn);
 }
 
 //* 打开并在主窗口绘制该图片
@@ -469,10 +511,41 @@ void ChangeAllMenuStatus(UINT unMenuFlags)
 	EnableMenuItem(GetSystemMenu(hWndMain, FALSE), SC_CLOSE, unMenuFlags);
 }
 
-//* 保存编辑过的图片
-void SaveEditedImg(void)
-{
+//* 保存编辑过的图片，返回值告诉上层调用函数并没有存储图片文件
+BOOL SaveEditedImg(BOOL blIsPromptedToSave)
+{	
+	//* 看看需要保存吗？不需要则直接返回就行
+	if (!pobjOpenedImage || !pobjOpenedImage->GetEditFlag())
+		return FALSE;
 
+	//* 看看需要提示吗
+	if (blIsPromptedToSave)
+	{
+		CHAR szTip[255];
+		sprintf(szTip, "是不是忘了啥了，你刚才辛苦编辑过的图片文件还没保存呐，要保存吗？\r\n『确定』保存\r\n『取消』放弃保存");
+		if (MessageBox(hWndMain, szTip, "保存提示", MB_OKCANCEL) != IDOK)
+		{
+			pobjOpenedImage->SetEditFlag(FALSE);
+
+			//* 禁止保存菜单
+			EnableMenuItem(GetMenu(hWndMain), IDM_SAVE, MF_DISABLED);
+
+			return FALSE;
+		}			
+	}
+
+	CHAR szSavedImgFileName[MAX_PATH + 1] = { 0 };
+	if (GetSaveFilePath(szSavedImgFileName, sizeof(szSavedImgFileName)))
+	{
+		pobjOpenedImage->save(szSavedImgFileName);
+
+		pobjOpenedImage->SetEditFlag(FALSE);
+
+		//* 禁止保存菜单
+		EnableMenuItem(GetMenu(hWndMain), IDM_SAVE, MF_DISABLED);
+	}
+
+	return TRUE;
 }
 
 void ImageHandler(INT nMenuID)
@@ -483,7 +556,13 @@ void ImageHandler(INT nMenuID)
 		{
 			ChangeAllMenuStatus(MF_DISABLED);			
 
+			//* 显示帮助信息			
+			cout << staImgHandlerList[i].szHelp << endl;
+
 			staImgHandlerList[i].pfunHadler();
+
+			//* 清除帮助信息
+			system("cls");
 
 			//* 变换完毕，更新显示区域
 			ForcedUpdateCleintRect(hWndMain);

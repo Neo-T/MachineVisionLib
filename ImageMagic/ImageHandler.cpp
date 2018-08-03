@@ -27,13 +27,15 @@ void ImagePerspectiveTransformation::process(Mat& mSrcImg, Mat& mResultImg, Mat&
 
 	o_dblScaleFactor = dblScaleFactor;
 
-	namedWindow(pszDestImgWinName, WINDOW_AUTOSIZE);
-	//moveWindow(pszDestImgWinName, 30, 30);		//* 将目标窗口移动到左上角
-	resizeWindow(pszDestImgWinName, 300, 300);	//* 目标窗口调整为一个固定值，省得程序一启动就很大
+	//* 命名操作窗口
+	namedWindow(pszDestImgWinName, WINDOW_AUTOSIZE);	
 	namedWindow(pszSrcImgWinName, WINDOW_AUTOSIZE);	
 
-	imshow(pszSrcImgWinName, mSrcShowImg);
-	//imshow(pszDestImgWinName, mShowImg);
+	//* 隐藏目标窗口
+	cv2shell::ShowImageWindow(pszDestImgWinName, FALSE);
+
+	//* 显示原始图片
+	imshow(pszSrcImgWinName, mSrcShowImg);	
 
 	//* 处理鼠标事件的回调函数
 	setMouseCallback(pszSrcImgWinName, EHImgPerspecTrans_OnMouse, this);
@@ -44,8 +46,46 @@ void ImagePerspectiveTransformation::process(Mat& mSrcImg, Mat& mResultImg, Mat&
 	{
 		//* 等待按键
 		CHAR bInputKey = waitKey(10);
-		if (bInputKey == 'q' || bInputKey == 'Q' || bInputKey == 27)
-			blIsNotEndOpt = FALSE;	
+		switch ((CHAR)toupper(bInputKey))
+		{
+		case 'R':
+			o_vptROI.push_back(o_vptROI[0]);
+			o_vptROI.erase(o_vptROI.begin());
+
+			//* 重绘
+			o_blIsNeedPaint = TRUE;
+			break;
+
+		case 'I':
+			swap(o_vptROI[0], o_vptROI[1]);
+			swap(o_vptROI[2], o_vptROI[3]);
+
+			//* 重绘
+			o_blIsNeedPaint = TRUE;
+			break;
+		
+		case 'D':
+		case 46:
+			o_vptROI.clear();
+
+			//* 恢复原始图像
+			mSrcImg.copyTo(mResultImg);
+
+			//* 隐藏目标窗口
+			cv2shell::ShowImageWindow(pszDestImgWinName, FALSE);
+
+			//* 重绘
+			o_blIsNeedPaint = TRUE;
+			break;
+		
+		case 'Q':
+		case 27:	//* Esc键
+			blIsNotEndOpt = FALSE;
+			break;
+
+		default:
+			break;
+		}
 
 		//* 是否需要绘制角点区域
 		if (o_blIsNeedPaint)
@@ -86,7 +126,8 @@ void ImagePerspectiveTransformation::process(Mat& mSrcImg, Mat& mResultImg, Mat&
 				vptDstCorners[0].y = 0;
 
 				//* norm()函数的公式为:sqrt(x^2 + y^2)，计算得到两个二维点之间的欧几里德距离
-				//* 比较0、1和2、3点之间那个欧式距离最大，大的那个就是目标角点中的右上点
+				//* 比较0、1和2、3点之间那个欧式距离最大，大的那个就是目标角点中的右上点，通
+				//* 过欧式距离计算，就能知道目标右上点具体坐标位置了
 				vptDstCorners[1].x = (FLOAT)max(norm(o_vptROI[0] - o_vptROI[1]), norm(o_vptROI[2] - o_vptROI[3]));
 				vptDstCorners[1].y = 0;
 
@@ -101,6 +142,9 @@ void ImagePerspectiveTransformation::process(Mat& mSrcImg, Mat& mResultImg, Mat&
 				//* 计算转换矩阵，并转换
 				Mat H = findHomography(o_vptROI, vptDstCorners);
 				warpPerspective(mSrcImg, mResultImg, H, Size(cvRound(vptDstCorners[2].x), cvRound(vptDstCorners[2].y)));
+
+				//* 显示转换结果
+				cv2shell::ShowImageWindow(pszDestImgWinName, TRUE);
 				imshow(pszDestImgWinName, mResultImg);
 				//* ===================================================================================================================
 			}
@@ -144,7 +188,7 @@ static void EHImgPerspecTrans_OnMouse(INT nEvent, INT x, INT y, INT nFlags, void
 	if (nEvent == EVENT_LBUTTONUP)
 	{ 
 		//* 还没选择完4个点，则继续添加之
-		if (vptROI.size() < 4)
+		if (vptROI.size() < 4 && INVALID_INDEX == pobjIPT->GetDragingCornerPointIndex())
 		{
 			vptROI.push_back(Point2f(flSrcImgX, flSrcImgY));
 			pobjIPT->NeedToDrawCornerPoint();

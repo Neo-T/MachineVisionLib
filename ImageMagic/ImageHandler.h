@@ -40,10 +40,3 @@ private:
 	BOOL o_blIsNeedPaint;
 	DOUBLE o_dblScaleFactor;
 };
-
-//* 菜单处理函数
-typedef void(*PFUN_IMGHANDLER)(void);
-typedef struct _ST_IMGHANDLER_ {
-	INT nMenuID;
-	PFUN_IMGHANDLER pfunHadler;
-} ST_IMGHANDLER, *PST_IMGHANDLER;

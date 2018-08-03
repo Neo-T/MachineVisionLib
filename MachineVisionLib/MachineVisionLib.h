@@ -151,6 +151,8 @@ namespace cv2shell {
 	MACHINEVISIONLIB INT GetObjectNum(vector<RecogCategory> &vObjects, string strObjectName, FLOAT *pflConfidenceOfExist, FLOAT *pflConfidenceOfObjectNum); 
 
 	MACHINEVISIONLIB void MergeOverlappingRect(vector<ST_DIAGONAL_POINTS> vSrcRects, vector<ST_DIAGONAL_POINTS>& vMergedRects);
+
+	MACHINEVISIONLIB void ShowImageWindow(CHAR *pszWindowTitle, BOOL blIsShowing);
 };
 
 //* caffe½Ó¿Ú

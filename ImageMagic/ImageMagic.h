@@ -92,6 +92,11 @@ public:
 		return o_blIsEdited;
 	}
 
+	void save(CHAR *pszFileName)
+	{
+		imwrite(pszFileName, o_mResultImg);
+	}
+
 private:
 	Mat o_mOpenedImg;			//* 读入的原始图片数据
 	Mat o_mResultImg;			//* 处理后的结果数据
@@ -102,3 +107,11 @@ private:
 
 	BOOL o_blIsEdited;			//* 是否编辑过
 };
+
+//* 菜单处理函数
+typedef void(*PFUN_IMGHANDLER)(void);
+typedef struct _ST_IMGHANDLER_ {
+	INT nMenuID;
+	PFUN_IMGHANDLER pfunHadler;
+	CHAR szHelp[1024];
+} ST_IMGHANDLER, *PST_IMGHANDLER;
