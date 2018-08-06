@@ -8,6 +8,12 @@
 //* https://blog.csdn.net/xingchenbingbuyu/article/details/53236541
 //* 配置VS2015
 //* https://blog.csdn.net/flyyufenfei/article/details/79176136
+//* 
+//* OCR相关:
+//* https://blog.csdn.net/qq_37674858/article/details/80576978
+//* tesseract D:\work\SC\DlibTest\x64\Release\ValidCodeImg.jpg out -psm 13
+//* tesseract将其处理为原始数据
+//* 训练要识别的数据集才能提高识别效率：http://lib.csdn.net/article/deeplearning/50608
 #ifdef MACHINEVISIONLIB_EXPORTS
 #define MACHINEVISIONLIB __declspec(dllexport)
 #else
