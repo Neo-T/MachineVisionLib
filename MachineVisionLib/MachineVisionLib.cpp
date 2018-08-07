@@ -938,7 +938,7 @@ MACHINEVISIONLIB void cv2shell::ObjectDetect(Mat &matImg, Net &dnnNet, vector<st
 	//* ¼ÆËãÍøÂçÊä³ö
 	Mat matDetection = dnnNet.forward("detection_out");
 
-	Mat matIdentifyObjects(matDetection.size[2], matDetection.size[3], CV_32F, matDetection.ptr<float>());
+	Mat matIdentifyObjects(matDetection.size[2], matDetection.size[3], CV_32F, matDetection.ptr<FLOAT>());
 
 	for (int i = 0; i < matIdentifyObjects.rows; i++)
 	{
@@ -949,14 +949,14 @@ MACHINEVISIONLIB void cv2shell::ObjectDetect(Mat &matImg, Net &dnnNet, vector<st
 
 		RecogCategory category;
 
-		category.xLeftBottom = static_cast<int>(matIdentifyObjects.at<float>(i, 3) * matImg.cols);
-		category.yLeftBottom = static_cast<int>(matIdentifyObjects.at<float>(i, 4) * matImg.rows);
-		category.xRightTop = static_cast<int>(matIdentifyObjects.at<float>(i, 5) * matImg.cols);
-		category.yRightTop = static_cast<int>(matIdentifyObjects.at<float>(i, 6) * matImg.rows);
+		category.xLeftBottom = static_cast<INT>(matIdentifyObjects.at<FLOAT>(i, 3) * matImg.cols);
+		category.yLeftBottom = static_cast<INT>(matIdentifyObjects.at<FLOAT>(i, 4) * matImg.rows);
+		category.xRightTop = static_cast<INT>(matIdentifyObjects.at<FLOAT>(i, 5) * matImg.cols);
+		category.yRightTop = static_cast<INT>(matIdentifyObjects.at<FLOAT>(i, 6) * matImg.rows);
 
 		category.flConfidenceVal = flConfidenceVal;
 
-		size_t tObjClass = (size_t)matIdentifyObjects.at<float>(i, 1);
+		size_t tObjClass = (size_t)matIdentifyObjects.at<FLOAT>(i, 1);
 		category.strCategoryName = vClassNames[tObjClass];
 		vObjects.push_back(category);
 	}
