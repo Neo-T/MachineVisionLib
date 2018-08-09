@@ -1182,6 +1182,39 @@ MACHINEVISIONLIB void cv2shell::ShowImageWindow(CHAR *pszWindowTitle, BOOL blIsS
 		ShowWindow(hWndParentOCVImgShow, SW_HIDE);
 }
 
+//* 认证码图片预处理操作，其实就是去掉图片的背景和颜色特征
+MACHINEVISIONLIB void cv2shell::CAPTCHAImgPreProcess(Mat& mSrcImg, Mat& mDstImg)
+{
+	if (mSrcImg.empty())
+	{
+		cout << "检测到参数mSrcImg为空，CAPTCHAImgPreProcess()函数无法对图片进行预处理操作！" << endl;
+		return;
+	}
+
+	Mat mGrayImg;
+	if (mSrcImg.channels() == 3)
+		cvtColor(mSrcImg, mGrayImg, COLOR_BGR2GRAY);
+	else
+		mSrcImg.copyTo(mGrayImg);
+
+	//* 将灰度图颜色反转，也就是偏亮的颜色变暗，偏暗的变亮，这样才能在二值化时让认证码部分变成白色
+	mGrayImg = 255 - mGrayImg;
+
+	//* 计算图像的灰度均值，并二值化，低于均值的黑色，高于均值的白色
+	DOUBLE dblMean = mean(mGrayImg)[0];
+	threshold(mGrayImg, mDstImg, dblMean, 255, THRESH_BINARY);
+}
+
+//* 参数size用于指定进行开运算以消除小的噪点时使用的核大小，推荐值为Size(3, 3)
+MACHINEVISIONLIB void cv2shell::CAPTCHAImgPreProcess(Mat& mSrcImg, Mat& mDstImg, const Size& size)
+{
+	Mat mBinaryImg;
+	CAPTCHAImgPreProcess(mSrcImg, mBinaryImg);
+
+	Mat element = getStructuringElement(MORPH_RECT, size);
+	morphologyEx(mBinaryImg, mDstImg, MORPH_OPEN, element);
+}
+
 CMachineVisionLib::CMachineVisionLib()
 {
     return;

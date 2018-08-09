@@ -13,7 +13,11 @@
 //* https://blog.csdn.net/qq_37674858/article/details/80576978
 //* tesseract D:\work\SC\DlibTest\x64\Release\ValidCodeImg.jpg out -psm 13
 //* tesseract将其处理为原始数据
-//* 训练要识别的数据集才能提高识别效率：http://lib.csdn.net/article/deeplearning/50608
+//* 训练要识别的数据集才能提高识别效率：
+//* tesseract.exe --psm 7 captcha.tif captcha batch.nochop makebox
+//* 增加psm 7会去掉错误，否则无法训练
+//* https://www.jianshu.com/p/5c8c6b170f6f
+//* http://lib.csdn.net/article/deeplearning/50608
 #ifdef MACHINEVISIONLIB_EXPORTS
 #define MACHINEVISIONLIB __declspec(dllexport)
 #else
@@ -159,6 +163,8 @@ namespace cv2shell {
 	MACHINEVISIONLIB void MergeOverlappingRect(vector<ST_DIAGONAL_POINTS> vSrcRects, vector<ST_DIAGONAL_POINTS>& vMergedRects);
 
 	MACHINEVISIONLIB void ShowImageWindow(CHAR *pszWindowTitle, BOOL blIsShowing);
+	MACHINEVISIONLIB void CAPTCHAImgPreProcess(Mat& mSrcImg, Mat& mDstImg);	
+	MACHINEVISIONLIB void CAPTCHAImgPreProcess(Mat& mSrcImg, Mat& mDstImg, const Size& size);
 };
 
 //* caffe接口
