@@ -25,6 +25,8 @@
 
 using namespace std;
 
+typedef CRITICAL_SECTION THMUTEX;
+
 //* 内存文件
 typedef struct _ST_MEM_FILE_ {	
 	HANDLE hMem;
@@ -78,4 +80,10 @@ namespace common_lib {
 	COMMON_LIB_API UINT GetWorkPath(CHAR *pszPath, UINT unPathBytes);
 
 	COMMON_LIB_API INT EatZeroOfTheNumberTail(INT nNum);
+
+	//* 线程锁
+	COMMON_LIB_API void InitThreadMutex(THMUTEX *pthMutex);
+	COMMON_LIB_API void UninitThreadMutex(THMUTEX *pthMutex);
+	COMMON_LIB_API void EnterThreadMutex(THMUTEX *pthMutex);
+	COMMON_LIB_API void ExitThreadMutex(THMUTEX *pthMutex);
 };

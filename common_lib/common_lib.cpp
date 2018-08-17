@@ -422,3 +422,27 @@ COMMON_LIB_API INT common_lib::EatZeroOfTheNumberTail(INT nNum)
 		return nNum;
 }
 
+//* 初始化线程锁
+COMMON_LIB_API void common_lib::InitThreadMutex(THMUTEX *pthMutex)
+{
+	InitializeCriticalSection(pthMutex);
+}
+
+//* 去初始化线程锁
+COMMON_LIB_API void common_lib::UninitThreadMutex(THMUTEX *pthMutex)
+{
+	DeleteCriticalSection(pthMutex);
+}
+
+//* 线程加锁
+COMMON_LIB_API void common_lib::EnterThreadMutex(THMUTEX *pthMutex)
+{
+	EnterCriticalSection(pthMutex);
+}
+
+//* 线程解锁
+COMMON_LIB_API void common_lib::ExitThreadMutex(THMUTEX *pthMutex)
+{
+	LeaveCriticalSection(pthMutex);
+}
+

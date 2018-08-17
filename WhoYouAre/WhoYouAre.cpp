@@ -11,6 +11,7 @@
 #include "common_lib.h"
 #include "MachineVisionLib.h"
 #include "FaceRecognition.h"
+#include "MVLVideo.h"
 
 #if NEED_GPU
 #pragma comment(lib,"cublas.lib")
