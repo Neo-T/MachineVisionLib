@@ -9,14 +9,6 @@
 #include "ImagePreprocess.h"
 #include "ImageHandler.h"
 
-#if NEED_GPU
-#pragma comment(lib,"cublas.lib")
-#pragma comment(lib,"cuda.lib")
-#pragma comment(lib,"cudart.lib")
-#pragma comment(lib,"curand.lib")
-#pragma comment(lib,"cudnn.lib")
-#endif
-
 static void EHImgPerspecTrans_OnMouse(INT nEvent, INT x, INT y, INT nFlags, void *pvIPT);
 
 //* Í¼ÏñÍ¸ÊÓ±ä»»

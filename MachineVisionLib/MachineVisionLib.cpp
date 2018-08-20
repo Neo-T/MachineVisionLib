@@ -11,14 +11,6 @@
 #include "common_lib.h"
 #include "MachineVisionLib.h"
 
-#if NEED_GPU
-#pragma comment(lib,"cublas.lib")
-#pragma comment(lib,"cuda.lib")
-#pragma comment(lib,"cudart.lib")
-#pragma comment(lib,"curand.lib")
-#pragma comment(lib,"cudnn.lib")
-#endif
-
 //* Ö´ÐÐCanny±ßÔµ¼ì²â
 MACHINEVISIONLIB void cv2shell::CV2Canny(Mat &matSrc, Mat &matOut)
 {

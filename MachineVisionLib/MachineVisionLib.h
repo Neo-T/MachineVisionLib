@@ -46,6 +46,14 @@
 
 #define NEED_GPU	0
 
+#if NEED_GPU
+#pragma comment(lib,"cublas.lib")
+#pragma comment(lib,"cuda.lib")
+#pragma comment(lib,"cudart.lib")
+#pragma comment(lib,"curand.lib")
+#pragma comment(lib,"cudnn.lib")
+#endif
+
 using namespace cv;
 using namespace common_lib;
 using namespace cv::ml;

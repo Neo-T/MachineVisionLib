@@ -13,14 +13,6 @@
 #include "FaceRecognition.h"
 #include "MVLVideo.h"
 
-#if NEED_GPU
-#pragma comment(lib,"cublas.lib")
-#pragma comment(lib,"cuda.lib")
-#pragma comment(lib,"cudart.lib")
-#pragma comment(lib,"curand.lib")
-#pragma comment(lib,"cudnn.lib")
-#endif
-
 #define NEED_DEBUG_CONSOLE	1	//* 是否需要控制台窗口输出
 
 #if !NEED_DEBUG_CONSOLE
@@ -123,14 +115,35 @@ static void __VideoPredict(DType dtVideoSrc, BOOL blIsNeedToReplay)
 	cv2shell::CV2ShowVideo(dtVideoSrc, __PredictThroughVideoData, (DWORD64)&face_db, blIsNeedToReplay);
 }
 
+static void __NetcamDispPreprocessor(Mat& mVideoFrame)
+{
+
+}
+
+//* 通过网络摄像头识别
+static void __NetcamPredict(const CHAR *pszURL, BOOL blIsNeedToReplay)
+{
+	MVLVideo objMVLVideo;
+
+	if (!objMVLVideo.OpenVideoFromeRtsp(pszURL, __NetcamDispPreprocessor, "image"))
+	{
+		cout << "Open rtsp stream failed!" << endl;
+		return;
+	}
+
+	while(27 != waitKey(10))
+	{}
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
 	if (argc != 3 && argc != 4 && argc != 2)
 	{
 		cout << "Usage: " << endl << argv[0] << " add [Img Path] [Person Name]" << endl;
 		cout << argv[0] << " predict [Img Path]" << endl;
-		cout << argv[0] << " camera [camera number, If not specified, the default value is 0]" << endl;
+		cout << argv[0] << " video [camera number, If not specified, the default value is 0]" << endl;
 		cout << argv[0] << " video [video file path]" << endl;
+		cout << argv[0] << " netcam [rtsp url]" << endl;
 
 		return -1;
 	}
@@ -162,6 +175,16 @@ int _tmain(int argc, _TCHAR* argv[])
 
 		__VideoPredict((const CHAR*)szVideoFile, FALSE);
 	}
+	else if (string("netcam") == strOptType.toLowerCase())
+	{
+		if (argc != 3)
+			goto __lblUsage;
+
+		CHAR szURL[MAX_PATH];
+		sprintf_s(szURL, "%s", argv[2]);
+
+		__NetcamPredict((const CHAR*)szURL, FALSE);
+	}
 	else
 		goto __lblUsage;
 
@@ -172,6 +195,7 @@ __lblUsage:
 	cout << argv[0] << " predict [Img Path]" << endl;
 	cout << argv[0] << " video [camera number, If not specified, the default value is 0]" << endl;
 	cout << argv[0] << " video [video file path]" << endl;
+	cout << argv[0] << " netcam [rtsp url]" << endl;
 
     return 0;
 }
