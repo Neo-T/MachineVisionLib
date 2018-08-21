@@ -26,7 +26,7 @@ static CHAR* const l_pbaVLCBaseArgs[] =	//* const确保o_pbaVLCArg本身的值也就是地
 void *MVLVideo::FCBLock(void *pvCBInputParam, void **ppvFrameBuf)
 {	
 	MVLVideo *pobjMVLVideo = (MVLVideo *)pvCBInputParam;
-	*ppvFrameBuf = pobjMVLVideo->o_mVideoFrame.data;
+	*ppvFrameBuf = pobjMVLVideo->o_mVideoFrameRGB.data;
 
 	return *ppvFrameBuf;
 }
@@ -36,7 +36,9 @@ void MVLVideo::FCBUnlock(void *pvCBInputParam, void *pvFrameData, void* const *p
 {
 	MVLVideo *pobjMVLVideo = (MVLVideo *)pvCBInputParam;
 
-	pobjMVLVideo->o_mVideoFrame.copyTo(pobjMVLVideo->o_mDisplayFrame);
+	cvtColor(pobjMVLVideo->o_mVideoFrameRGB, pobjMVLVideo->o_mVideoFrameBGR, CV_RGB2BGR);
+
+	pobjMVLVideo->o_mVideoFrameBGR.copyTo(pobjMVLVideo->o_mDisplayFrame);
 	pobjMVLVideo->o_unNextFrameIdx++;
 }
 
@@ -58,7 +60,7 @@ Mat MVLVideo::GetNextFrame(void)
 	if (o_unPrevFrameIdx != o_unNextFrameIdx)
 	{
 		o_unPrevFrameIdx = o_unNextFrameIdx;
-		return o_mVideoFrame;
+		return o_mVideoFrameBGR;
 	}
 	else
 	{
@@ -68,7 +70,7 @@ Mat MVLVideo::GetNextFrame(void)
 }
 
 //* 打开一个视频文件
-BOOL MVLVideo::OpenVideoFromFile(const CHAR *pszFile, PFCB_DISPLAY_PREPROCESSOR pfcbDispPreprocessor, 
+void MVLVideo::OpenVideoFromFile(const CHAR *pszFile, PFCB_DISPLAY_PREPROCESSOR pfcbDispPreprocessor, 
 									const CHAR *pszDisplayWinName, ENUM_ASPECT_RATIO enumAspectRatio)
 {
 	UINT unArgc = sizeof(l_pbaVLCBaseArgs) / sizeof(l_pbaVLCBaseArgs[0]);
@@ -85,7 +87,7 @@ BOOL MVLVideo::OpenVideoFromFile(const CHAR *pszFile, PFCB_DISPLAY_PREPROCESSOR 
 		o_unAdjustedHeight = (o_unAdjustedWidth / 16) * 9;
 	else
 		o_unAdjustedHeight = (o_unAdjustedWidth / 4) * 3;
-	o_mVideoFrame = Mat(Size(o_unAdjustedWidth, o_unAdjustedHeight), CV_8UC3);
+	o_mVideoFrameRGB = Mat(Size(o_unAdjustedWidth, o_unAdjustedHeight), CV_8UC3);
 
 	o_pstVLCInstance = libvlc_new(unArgc, ppbaVLCArgs);	
 	delete[] ppbaVLCArgs;	//* 删除刚才申请的参数缓冲区，libvlc_new()调用后就不用了
@@ -95,19 +97,14 @@ BOOL MVLVideo::OpenVideoFromFile(const CHAR *pszFile, PFCB_DISPLAY_PREPROCESSOR 
 	libvlc_media_release(pstVLCMedia);	//* libvlc_media_player_new_from_media()调用完毕后，释放就可以了
 
 	libvlc_video_set_callbacks(o_pstVLCMediaPlayer, FCBLock, FCBUnlock, FCBDisplay, NULL);								//* 设定回调函数
-	libvlc_video_set_format(o_pstVLCMediaPlayer, "RV24", o_unAdjustedWidth, o_unAdjustedHeight, o_unAdjustedWidth * 3);	//* 设定播放格式
-
-	if(libvlc_media_player_play(o_pstVLCMediaPlayer) < 0)
-		return FALSE;
+	libvlc_video_set_format(o_pstVLCMediaPlayer, "RV24", o_unAdjustedWidth, o_unAdjustedHeight, o_unAdjustedWidth * 3);	//* 设定播放格式	
 
 	o_strDisplayWinName = pszDisplayWinName;
 	o_pfcbDispPreprocessor = pfcbDispPreprocessor;
-
-	return TRUE;
 }
 
 //* 打开一个网络RTSP串流
-BOOL MVLVideo::OpenVideoFromeRtsp(const CHAR *pszURL, PFCB_DISPLAY_PREPROCESSOR pfcbDispPreprocessor,
+void MVLVideo::OpenVideoFromeRtsp(const CHAR *pszURL, PFCB_DISPLAY_PREPROCESSOR pfcbDispPreprocessor,
 									const CHAR *pszDisplayWinName, UINT unNetCachingTime, 
 									BOOL blIsUsedTCP, ENUM_ASPECT_RATIO enumAspectRatio)
 {
@@ -139,9 +136,9 @@ BOOL MVLVideo::OpenVideoFromeRtsp(const CHAR *pszURL, PFCB_DISPLAY_PREPROCESSOR 
 		o_unAdjustedHeight = (o_unAdjustedWidth / 16) * 9;
 	else
 		o_unAdjustedHeight = (o_unAdjustedWidth / 4) * 3;
-	o_mVideoFrame = Mat(Size(o_unAdjustedWidth, o_unAdjustedHeight), CV_8UC3);
+	o_mVideoFrameRGB = Mat(Size(o_unAdjustedWidth, o_unAdjustedHeight), CV_8UC3);
 
-	cout << o_unAdjustedWidth << " * " << o_unAdjustedHeight << endl;
+	//cout << o_unAdjustedWidth << " * " << o_unAdjustedHeight << endl;
 
 	o_pstVLCInstance = libvlc_new(unArgc, ppbaVLCArgs);
 	delete[] ppbaVLCArgs;	//* 删除刚才申请的参数缓冲区，libvlc_new()调用后就不用了
@@ -153,12 +150,40 @@ BOOL MVLVideo::OpenVideoFromeRtsp(const CHAR *pszURL, PFCB_DISPLAY_PREPROCESSOR 
 	libvlc_video_set_callbacks(o_pstVLCMediaPlayer, FCBLock, FCBUnlock, FCBDisplay, this);								//* 设定回调函数
 	libvlc_video_set_format(o_pstVLCMediaPlayer, "RV24", o_unAdjustedWidth, o_unAdjustedHeight, o_unAdjustedWidth * 3);	//* 设定播放格式
 
-	if (libvlc_media_player_play(o_pstVLCMediaPlayer) < 0)
-		return FALSE;
-
 	o_strDisplayWinName = pszDisplayWinName;
 	o_pfcbDispPreprocessor = pfcbDispPreprocessor;
+}
+
+//* 暂停/恢复当前视频/网络摄像机的播放
+void MVLVideo::pause(BOOL blIsPaused)
+{
+	libvlc_media_player_set_pause(o_pstVLCMediaPlayer, blIsPaused);
+}
+
+//* 停止播放当前视频/网络摄像
+void MVLVideo::stop(void)
+{
+	libvlc_media_player_stop(o_pstVLCMediaPlayer);
+}
+
+BOOL MVLVideo::start(void)
+{
+	if (libvlc_media_player_play(o_pstVLCMediaPlayer) < 0)
+	{
+		cout << "libvlc_media_player_play()函数执行失败，请确认视频文件或RTSP流媒体地址正确！" << endl;
+
+		return FALSE;
+	}		
 
 	return TRUE;
 }
 
+//* 视频文件是否已经播放完毕，这个函数对网络摄像机无效
+BOOL MVLVideo::IsPlayEnd(void)
+{
+	libvlc_state_t enumVLCPlayState = libvlc_media_player_get_state(o_pstVLCMediaPlayer);	
+	if (enumVLCPlayState == libvlc_Ended || enumVLCPlayState == libvlc_Stopped)
+		return TRUE;
+
+	return FALSE;
+}

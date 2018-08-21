@@ -125,14 +125,36 @@ static void __NetcamPredict(const CHAR *pszURL, BOOL blIsNeedToReplay)
 {
 	MVLVideo objMVLVideo;
 
-	if (!objMVLVideo.OpenVideoFromeRtsp(pszURL, __NetcamDispPreprocessor, "image"))
+	cvNamedWindow(pszURL, CV_WINDOW_AUTOSIZE);
+	objMVLVideo.OpenVideoFromeRtsp(pszURL, __NetcamDispPreprocessor, pszURL);
+
+	if (!objMVLVideo.start())
 	{
-		cout << "Open rtsp stream failed!" << endl;
+		cout << "start rtsp stream failed!" << endl;
 		return;
 	}
 
-	while(27 != waitKey(10))
-	{}
+	CHAR bKey;
+	BOOL blIsPaused = FALSE;
+	while (TRUE)
+	{
+		bKey = waitKey(10);
+		if (27 == bKey)
+			break;
+
+		//* 空格暂停
+		if (' ' == bKey)
+		{
+			blIsPaused = !blIsPaused;
+			objMVLVideo.pause(blIsPaused);
+		}
+
+		if (objMVLVideo.IsPlayEnd())
+			break;
+	}
+
+	//* 其实不调用这个函数也可以，MVLVideo类的析构函数会主动调用的
+	objMVLVideo.stop();	
 }
 
 int _tmain(int argc, _TCHAR* argv[])
