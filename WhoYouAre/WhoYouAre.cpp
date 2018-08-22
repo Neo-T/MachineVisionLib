@@ -115,24 +115,42 @@ static void __VideoPredict(DType dtVideoSrc, BOOL blIsNeedToReplay)
 	cv2shell::CV2ShowVideo(dtVideoSrc, __PredictThroughVideoData, (DWORD64)&face_db, blIsNeedToReplay);
 }
 
-static void __NetcamDispPreprocessor(Mat& mVideoFrame)
-{
+static void __NetcamDispPreprocessor(Mat& mVideoFrame, void *pvParam)
+{	
+	//* 按照预训练模型的Size，输入图像必须是300 x 300，大部分图像基本是16：9或4：3，很少等比例的，为了避免图像变形，我们只好截取图像中间最大面积的正方形区域识别人脸
+	Mat mROI;
+	if (mVideoFrame.cols > mVideoFrame.rows)
+		mROI = mVideoFrame(Rect((mVideoFrame.cols - mVideoFrame.rows) / 2, 0, mVideoFrame.rows, mVideoFrame.rows));
+	else if (mVideoFrame.cols < mVideoFrame.rows)
+		mROI = mVideoFrame(Rect(0, (mVideoFrame.rows - mVideoFrame.cols) / 2, mVideoFrame.cols, mVideoFrame.cols));
+	else
+		mROI = mVideoFrame;
 
+	Net *pobjDNNNet = (Net*)pvParam;
+	Mat &matFaces = cv2shell::FaceDetect(*pobjDNNNet, mROI);
+	if (matFaces.empty())
+		return;
+
+	cv2shell::MarkFaceWithRectangle(mROI, matFaces, 0.8);
 }
 
 //* 通过网络摄像头识别
 static void __NetcamPredict(const CHAR *pszURL, BOOL blIsNeedToReplay)
 {
-	MVLVideo objMVLVideo;
+	VLCVideoPlayer objVideoPlayer;
 
 	cvNamedWindow(pszURL, CV_WINDOW_AUTOSIZE);
-	objMVLVideo.OpenVideoFromeRtsp(pszURL, __NetcamDispPreprocessor, pszURL);
+	objVideoPlayer.OpenVideoFromeRtsp(pszURL, __NetcamDispPreprocessor, pszURL);
 
-	if (!objMVLVideo.start())
+	if (!objVideoPlayer.start())
 	{
 		cout << "start rtsp stream failed!" << endl;
 		return;
 	}
+
+	//* 初始化DNN人脸检测网络，并将其传递给VLC播放器，以便显示预处理函数使用
+	Net dnnNet = cv2shell::InitFaceDetectDNNet();
+	objVideoPlayer.SetDispPreprocessorInputParam(&dnnNet);
 
 	CHAR bKey;
 	BOOL blIsPaused = FALSE;
@@ -142,19 +160,27 @@ static void __NetcamPredict(const CHAR *pszURL, BOOL blIsNeedToReplay)
 		if (27 == bKey)
 			break;
 
-		//* 空格暂停
+		//* 空格暂停，这个暂停是真暂停，播放器会缓存一段时间的实时视频流，换言之，其恢复播放后视频与当前时刻存在一定的时间差
 		if (' ' == bKey)
 		{
 			blIsPaused = !blIsPaused;
-			objMVLVideo.pause(blIsPaused);
+			objVideoPlayer.pause(blIsPaused);
 		}
 
-		if (objMVLVideo.IsPlayEnd())
+		if (objVideoPlayer.IsPlayEnd())
+		{
+			cout << "与网络摄像头的连接断开，无法继续获取实时视频流！" << endl;
 			break;
+		}	
+
+		//* 检测人脸
+		Mat mFrame = objVideoPlayer.GetNextFrame();
+		if (mFrame.empty())				
+			continue;		
 	}
 
-	//* 其实不调用这个函数也可以，MVLVideo类的析构函数会主动调用的
-	objMVLVideo.stop();	
+	//* 其实不调用这个函数也可以，VLCVideoPlayer类的析构函数会主动调用的
+	objVideoPlayer.stop();
 }
 
 int _tmain(int argc, _TCHAR* argv[])

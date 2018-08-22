@@ -153,8 +153,8 @@ namespace cv2shell {
 	MACHINEVISIONLIB void FaceDetect(Net &dnnNet, const CHAR *pszImgName, vector<Face> &vFaces, const Size &size, FLOAT flConfidenceThreshold = 0.3, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 177.0, 123.0));
 
 
-	MACHINEVISIONLIB void MarkFaceWithRectangle(Mat &matImg, Mat &matFaces, FLOAT flConfidenceThreshold = 0.3);
-	MACHINEVISIONLIB void MarkFaceWithRectangle(Mat &matImg, vector<Face> &vFaces);
+	MACHINEVISIONLIB void MarkFaceWithRectangle(Mat &matImg, Mat &matFaces, FLOAT flConfidenceThreshold = 0.3, BOOL blIsShow = FALSE);
+	MACHINEVISIONLIB void MarkFaceWithRectangle(Mat &matImg, vector<Face> &vFaces, BOOL blIsShow = FALSE);
 	MACHINEVISIONLIB void MarkFaceWithRectangle(Net &dnnNet, const CHAR *pszImgName, const Size &size, FLOAT flConfidenceThreshold = 0.3, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 177.0, 123.0));
 	MACHINEVISIONLIB void MarkFaceWithRectangle(Net &dnnNet, const CHAR *pszImgName, FLOAT flConfidenceThreshold = 0.3, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUALRATIO, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 177.0, 123.0));
 

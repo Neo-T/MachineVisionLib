@@ -23,38 +23,38 @@ static CHAR* const l_pbaVLCBaseArgs[] =	//* const确保o_pbaVLCArg本身的值也就是地
 
 //* VLC回调函数之锁定帧数据缓冲区函数，参数pvCBInputParam是传给回调函数的用户自定义参数
 //* pvCBInputParam指定接收帧数据的缓冲区的首地址
-void *MVLVideo::FCBLock(void *pvCBInputParam, void **ppvFrameBuf)
+void *VLCVideoPlayer::FCBLock(void *pvCBInputParam, void **ppvFrameBuf)
 {	
-	MVLVideo *pobjMVLVideo = (MVLVideo *)pvCBInputParam;
-	*ppvFrameBuf = pobjMVLVideo->o_mVideoFrameRGB.data;
+	VLCVideoPlayer *pobjVideoPlayer = (VLCVideoPlayer *)pvCBInputParam;
+	*ppvFrameBuf = pobjVideoPlayer->o_mVideoFrameRGB.data;
 
 	return *ppvFrameBuf;
 }
 
 //* VLC回调函数之解锁帧数据缓冲区函数，其实pvFrameData和ppvFrameBuf指向的是同一块内存，其值由FCBLock()函数返回
-void MVLVideo::FCBUnlock(void *pvCBInputParam, void *pvFrameData, void* const *ppvFrameBuf)
+void VLCVideoPlayer::FCBUnlock(void *pvCBInputParam, void *pvFrameData, void* const *ppvFrameBuf)
 {
-	MVLVideo *pobjMVLVideo = (MVLVideo *)pvCBInputParam;
+	VLCVideoPlayer *pobjVideoPlayer = (VLCVideoPlayer *)pvCBInputParam;
 
-	cvtColor(pobjMVLVideo->o_mVideoFrameRGB, pobjMVLVideo->o_mVideoFrameBGR, CV_RGB2BGR);
+	cvtColor(pobjVideoPlayer->o_mVideoFrameRGB, pobjVideoPlayer->o_mVideoFrameBGR, CV_RGB2BGR);
 
-	pobjMVLVideo->o_mVideoFrameBGR.copyTo(pobjMVLVideo->o_mDisplayFrame);
-	pobjMVLVideo->o_unNextFrameIdx++;
+	pobjVideoPlayer->o_mVideoFrameBGR.copyTo(pobjVideoPlayer->o_mDisplayFrame);
+	pobjVideoPlayer->o_unNextFrameIdx++;
 }
 
 //* VLC回调函数之显示函数
-void MVLVideo::FCBDisplay(void *pvCBInputParam, void *pvFrameData)
+void VLCVideoPlayer::FCBDisplay(void *pvCBInputParam, void *pvFrameData)
 {
-	MVLVideo *pobjMVLVideo = (MVLVideo *)pvCBInputParam;
+	VLCVideoPlayer *pobjVideoPlayer = (VLCVideoPlayer *)pvCBInputParam;
 
-	if (pobjMVLVideo->o_pfcbDispPreprocessor)
+	if (pobjVideoPlayer->o_pfcbDispPreprocessor)
 	{
-		pobjMVLVideo->o_pfcbDispPreprocessor(pobjMVLVideo->o_mDisplayFrame);
-		imshow(pobjMVLVideo->o_strDisplayWinName, pobjMVLVideo->o_mDisplayFrame);
+		pobjVideoPlayer->o_pfcbDispPreprocessor(pobjVideoPlayer->o_mDisplayFrame, pobjVideoPlayer->o_pvFunCBDispPreprocParam);
+		imshow(pobjVideoPlayer->o_strDisplayWinName, pobjVideoPlayer->o_mDisplayFrame);
 	}
 }
 
-Mat MVLVideo::GetNextFrame(void)
+Mat VLCVideoPlayer::GetNextFrame(void)
 {
 	//* 看看下一帧数据是否已经到达
 	if (o_unPrevFrameIdx != o_unNextFrameIdx)
@@ -70,7 +70,7 @@ Mat MVLVideo::GetNextFrame(void)
 }
 
 //* 打开一个视频文件
-void MVLVideo::OpenVideoFromFile(const CHAR *pszFile, PFCB_DISPLAY_PREPROCESSOR pfcbDispPreprocessor, 
+void VLCVideoPlayer::OpenVideoFromFile(const CHAR *pszFile, PFCB_DISPLAY_PREPROCESSOR pfcbDispPreprocessor,
 									const CHAR *pszDisplayWinName, ENUM_ASPECT_RATIO enumAspectRatio)
 {
 	UINT unArgc = sizeof(l_pbaVLCBaseArgs) / sizeof(l_pbaVLCBaseArgs[0]);
@@ -104,7 +104,7 @@ void MVLVideo::OpenVideoFromFile(const CHAR *pszFile, PFCB_DISPLAY_PREPROCESSOR 
 }
 
 //* 打开一个网络RTSP串流
-void MVLVideo::OpenVideoFromeRtsp(const CHAR *pszURL, PFCB_DISPLAY_PREPROCESSOR pfcbDispPreprocessor,
+void VLCVideoPlayer::OpenVideoFromeRtsp(const CHAR *pszURL, PFCB_DISPLAY_PREPROCESSOR pfcbDispPreprocessor,
 									const CHAR *pszDisplayWinName, UINT unNetCachingTime, 
 									BOOL blIsUsedTCP, ENUM_ASPECT_RATIO enumAspectRatio)
 {
@@ -154,19 +154,25 @@ void MVLVideo::OpenVideoFromeRtsp(const CHAR *pszURL, PFCB_DISPLAY_PREPROCESSOR 
 	o_pfcbDispPreprocessor = pfcbDispPreprocessor;
 }
 
+//* 设置显示预处理函数的输入参数
+void VLCVideoPlayer::SetDispPreprocessorInputParam(void *pvParam)
+{
+	o_pvFunCBDispPreprocParam = pvParam;
+}
+
 //* 暂停/恢复当前视频/网络摄像机的播放
-void MVLVideo::pause(BOOL blIsPaused)
+void VLCVideoPlayer::pause(BOOL blIsPaused)
 {
 	libvlc_media_player_set_pause(o_pstVLCMediaPlayer, blIsPaused);
 }
 
 //* 停止播放当前视频/网络摄像
-void MVLVideo::stop(void)
+void VLCVideoPlayer::stop(void)
 {
 	libvlc_media_player_stop(o_pstVLCMediaPlayer);
 }
 
-BOOL MVLVideo::start(void)
+BOOL VLCVideoPlayer::start(void)
 {
 	if (libvlc_media_player_play(o_pstVLCMediaPlayer) < 0)
 	{
@@ -179,7 +185,7 @@ BOOL MVLVideo::start(void)
 }
 
 //* 视频文件是否已经播放完毕，这个函数对网络摄像机无效
-BOOL MVLVideo::IsPlayEnd(void)
+BOOL VLCVideoPlayer::IsPlayEnd(void)
 {
 	libvlc_state_t enumVLCPlayState = libvlc_media_player_get_state(o_pstVLCMediaPlayer);	
 	if (enumVLCPlayState == libvlc_Ended || enumVLCPlayState == libvlc_Stopped)
@@ -187,3 +193,17 @@ BOOL MVLVideo::IsPlayEnd(void)
 
 	return FALSE;
 }
+
+//* 释放申请的相关资源
+VLCVideoPlayer::~VLCVideoPlayer() {
+	if (libvlc_media_player_get_state(o_pstVLCMediaPlayer) != libvlc_Stopped)
+		libvlc_media_player_stop(o_pstVLCMediaPlayer);
+
+	libvlc_media_player_release(o_pstVLCMediaPlayer);
+	libvlc_release(o_pstVLCInstance);
+
+	//* 注意这个顺序，libvlc库在stop之前一直在使用它们，因此至少是stop后才能释放
+	o_mVideoFrameRGB.release();
+	o_mVideoFrameBGR.release();
+	o_mDisplayFrame.release();
+};

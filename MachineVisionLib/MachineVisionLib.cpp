@@ -596,7 +596,14 @@ MACHINEVISIONLIB Net cv2shell::InitFaceDetectDNNet(void)
 MACHINEVISIONLIB Mat cv2shell::FaceDetect(Net &dnnNet, Mat &matImg, const Size &size, FLOAT flScale, const Scalar &mean)
 {
 	//* 加载图片文件并归一化，size参数指定图片要缩放的目标尺寸，mena指定要减去的平均值的平均标量（红蓝绿三个颜色通道都要减）
-	Mat matInputBlob = blobFromImage(matImg, flScale, size, mean, false, false);
+	//* 关于blobFromImage:
+	//* image: 输入图像
+	//* scalefactor： 如果模型训练时归一化到了0-1之间，那么这个参数就应该是1.0f/256.0f，否则为1
+	//* size: 应该与训练时的输入图像尺寸保持一致，这里就应该是300 x 300
+	//* mean：均值，与模型训练时的值一致，由于我们使用的是预训练模型，该值固定
+	//* swapRB: 是否交换图像第1个通道和最后一个通道的顺序，这里不需要
+	//* crop: TRUE，则依据size裁剪图像，否则直接将图像调整至Size尺寸
+	Mat matInputBlob = blobFromImage(matImg, flScale, size, mean, FALSE, FALSE);
 
 	//* 设置网络输入
 	dnnNet.setInput(matInputBlob, "data");
@@ -649,9 +656,9 @@ MACHINEVISIONLIB Mat cv2shell::FaceDetect(Net &dnnNet, Mat &matImg, ENUM_IMGRESI
 {
 	if (enumMethod == EIRSZM_EQUALRATIO)
 	{
-		Size size = __ResizeImgToSpecPixel(matImg, 288); //* 实测288效果最好
-
-		return FaceDetect(dnnNet, matImg, size, flScale, mean);
+		//Size size = __ResizeImgToSpecPixel(matImg, 288); //* 实测288效果最好		
+		
+		return FaceDetect(dnnNet, matImg, Size(300, 300), flScale, mean);
 	}
 	else
 	{
@@ -734,9 +741,9 @@ MACHINEVISIONLIB void cv2shell::FaceDetect(Net &dnnNet, Mat &matImg, vector<Face
 {
 	if (enumMethod == EIRSZM_EQUALRATIO)
 	{
-		Size size = __ResizeImgToSpecPixel(matImg, 288); //* 实测288效果最好
+		//Size size = __ResizeImgToSpecPixel(matImg, 288); //* 实测288效果最好
 
-		FaceDetect(dnnNet, matImg, vFaces, size, flConfidenceThreshold, flScale, mean);
+		FaceDetect(dnnNet, matImg, vFaces, Size(300, 300), flConfidenceThreshold, flScale, mean);
 	}
 	else
 	{
@@ -782,7 +789,7 @@ MACHINEVISIONLIB void cv2shell::FaceDetect(Net &dnnNet, const CHAR *pszImgName, 
 
 //* 将测结果在图片上展示出来：用矩形框标记出人脸并输出预测概率
 //* 参数flConfidenceThreshold指定最小置信度阈值，也就是预测是人脸的最小概率值，大于此概率的被认作是人脸并标记
-MACHINEVISIONLIB void cv2shell::MarkFaceWithRectangle(Mat &matImg, Mat &matFaces, FLOAT flConfidenceThreshold)
+MACHINEVISIONLIB void cv2shell::MarkFaceWithRectangle(Mat &matImg, Mat &matFaces, FLOAT flConfidenceThreshold, BOOL blIsShow)
 {
 	for (int i = 0; i < matFaces.rows; i++)
 	{
@@ -815,7 +822,8 @@ MACHINEVISIONLIB void cv2shell::MarkFaceWithRectangle(Mat &matImg, Mat &matFaces
 		//* ======================================================================================
 	}
 
-	imshow("Face Detect Result", matImg);
+	if(blIsShow)
+		imshow("Face Detect Result", matImg);
 }
 
 //* 用矩形框标出人脸并输出概率
@@ -856,7 +864,7 @@ MACHINEVISIONLIB void cv2shell::MarkFaceWithRectangle(Net &dnnNet, const CHAR *p
 	MarkFaceWithRectangle(matImg, matFaces, flConfidenceThreshold);
 }
 
-MACHINEVISIONLIB void cv2shell::MarkFaceWithRectangle(Mat &matImg, vector<Face> &vFaces)
+MACHINEVISIONLIB void cv2shell::MarkFaceWithRectangle(Mat &matImg, vector<Face> &vFaces, BOOL blIsShow)
 {
 	vector<Face>::iterator itFace = vFaces.begin();
 	for (; itFace != vFaces.end(); itFace++)
@@ -883,8 +891,11 @@ MACHINEVISIONLIB void cv2shell::MarkFaceWithRectangle(Mat &matImg, vector<Face> 
 		//* ======================================================================================
 	}
 
-	namedWindow("Face Detect Result", 0);
-	imshow("Face Detect Result", matImg);
+	if (blIsShow)
+	{
+		namedWindow("Face Detect Result", 0);
+		imshow("Face Detect Result", matImg);
+	}	
 }
 
 //* 初始化轻型分类器，其实就是把DNN网络配置文件和训练好的模型加载到内存并据此建立DNN网络
