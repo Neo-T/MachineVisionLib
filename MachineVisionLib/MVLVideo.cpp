@@ -49,8 +49,8 @@ void VLCVideoPlayer::FCBDisplay(void *pvCBInputParam, void *pvFrameData)
 
 	if (pobjVideoPlayer->o_pfcbDispPreprocessor)
 	{
-		pobjVideoPlayer->o_pfcbDispPreprocessor(pobjVideoPlayer->o_mDisplayFrame, pobjVideoPlayer->o_pvFunCBDispPreprocParam);
-		imshow(pobjVideoPlayer->o_strDisplayWinName, pobjVideoPlayer->o_mDisplayFrame);
+		pobjVideoPlayer->o_pfcbDispPreprocessor(pobjVideoPlayer->o_mDisplayFrame, pobjVideoPlayer->o_pvFunCBDispPreprocParam, pobjVideoPlayer->o_unNextFrameIdx);
+		imshow(pobjVideoPlayer->o_strDisplayWinName, pobjVideoPlayer->o_mDisplayFrame);		
 	}
 }
 

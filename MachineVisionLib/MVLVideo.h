@@ -12,7 +12,7 @@
 
 #define DEFAULT_VIDEO_FRAME_WIDTH	1280	//* 缺省帧宽
 
-typedef void(*PFCB_DISPLAY_PREPROCESSOR)(Mat& mVideoFrame, void *pvParam);
+typedef void(*PFCB_DISPLAY_PREPROCESSOR)(Mat& mVideoFrame, void *pvParam, UINT unCurFrameIdx);
 
 //* 画面宽高比，即画面比例
 typedef enum {

@@ -791,7 +791,7 @@ MACHINEVISIONLIB void cv2shell::FaceDetect(Net &dnnNet, const CHAR *pszImgName, 
 //* 参数flConfidenceThreshold指定最小置信度阈值，也就是预测是人脸的最小概率值，大于此概率的被认作是人脸并标记
 MACHINEVISIONLIB void cv2shell::MarkFaceWithRectangle(Mat &matImg, Mat &matFaces, FLOAT flConfidenceThreshold, BOOL blIsShow)
 {
-	for (int i = 0; i < matFaces.rows; i++)
+	for (INT i = 0; i < matFaces.rows; i++)
 	{
 		FLOAT flConfidenceVal = matFaces.at<FLOAT>(i, 2);
 		if (flConfidenceVal < flConfidenceThreshold)
