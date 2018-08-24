@@ -50,6 +50,10 @@ public:
 	void SetDispPreprocessorInputParam(void *pvParam);
 
 	Mat GetNextFrame(void);
+	UINT GetCurFrameIndex(void)
+	{
+		return o_unNextFrameIdx;
+	}
 	
 	BOOL start(void);				//* 开始播放
 	void pause(BOOL blIsPaused);	//* 暂停播放

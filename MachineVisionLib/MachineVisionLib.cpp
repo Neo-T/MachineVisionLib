@@ -726,10 +726,10 @@ MACHINEVISIONLIB void cv2shell::FaceDetect(Net &dnnNet, Mat &matImg, vector<Face
 
 		Face face;
 
-		face.xLeftBottom = static_cast<INT>(matFaces.at<FLOAT>(i, 3) * matImg.cols);
-		face.yLeftBottom = static_cast<INT>(matFaces.at<FLOAT>(i, 4) * matImg.rows);
-		face.xRightTop = static_cast<INT>(matFaces.at<FLOAT>(i, 5) * matImg.cols);
-		face.yRightTop = static_cast<INT>(matFaces.at<FLOAT>(i, 6) * matImg.rows);
+		face.nLeftTopX = static_cast<INT>(matFaces.at<FLOAT>(i, 3) * matImg.cols);
+		face.nLeftTopY = static_cast<INT>(matFaces.at<FLOAT>(i, 4) * matImg.rows);
+		face.nRightBottomX = static_cast<INT>(matFaces.at<FLOAT>(i, 5) * matImg.cols);
+		face.nRightBottomY = static_cast<INT>(matFaces.at<FLOAT>(i, 6) * matImg.rows);
 
 		face.flConfidenceVal = flConfidenceVal;
 		vFaces.push_back(face);
@@ -797,13 +797,15 @@ MACHINEVISIONLIB void cv2shell::MarkFaceWithRectangle(Mat &matImg, Mat &matFaces
 		if (flConfidenceVal < flConfidenceThreshold)
 			continue;
 
-		INT xLeftBottom = static_cast<INT>(matFaces.at<FLOAT>(i, 3) * matImg.cols);
-		INT yLeftBottom = static_cast<INT>(matFaces.at<FLOAT>(i, 4) * matImg.rows);
-		INT xRightTop = static_cast<INT>(matFaces.at<FLOAT>(i, 5) * matImg.cols);
-		INT yRightTop = static_cast<INT>(matFaces.at<FLOAT>(i, 6) * matImg.rows);
+		INT nLeftTopX = static_cast<INT>(matFaces.at<FLOAT>(i, 3) * matImg.cols);
+		INT nLeftTopY = static_cast<INT>(matFaces.at<FLOAT>(i, 4) * matImg.rows);
+		INT nRightBottomX = static_cast<INT>(matFaces.at<FLOAT>(i, 5) * matImg.cols);
+		INT nRightBottomY = static_cast<INT>(matFaces.at<FLOAT>(i, 6) * matImg.rows);
+
+		//cout << nLeftTopX << " " << nLeftTopY << " " << nRightBottomX << " " << nRightBottomY << endl;
 
 		//* 画出矩形
-		Rect rectObj(xLeftBottom, yLeftBottom, (xRightTop - xLeftBottom), (yRightTop - yLeftBottom));
+		Rect rectObj(nLeftTopX, nLeftTopY, (nRightBottomX - nLeftTopX), (nRightBottomY - nLeftTopY));
 		rectangle(matImg, rectObj, Scalar(0, 255, 0));
 
 		//* 在被监测图片上输出可信度概率
@@ -815,10 +817,10 @@ MACHINEVISIONLIB void cv2shell::MarkFaceWithRectangle(Mat &matImg, Mat &matFaces
 
 		INT nBaseLine = 0;
 		Size labelSize = getTextSize(strLabel, FONT_HERSHEY_SIMPLEX, 0.5, 1, &nBaseLine);
-		rectangle(matImg, Rect(Point(xLeftBottom, yLeftBottom - labelSize.height),
+		rectangle(matImg, Rect(Point(nLeftTopX, nLeftTopY - labelSize.height),
 			Size(labelSize.width, labelSize.height + nBaseLine)),
 			Scalar(255, 255, 255), CV_FILLED);
-		putText(matImg, strLabel, Point(xLeftBottom, yLeftBottom), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(0, 0, 0));
+		putText(matImg, strLabel, Point(nLeftTopX, nLeftTopY), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(0, 0, 0));
 		//* ======================================================================================
 	}
 
@@ -872,7 +874,7 @@ MACHINEVISIONLIB void cv2shell::MarkFaceWithRectangle(Mat &matImg, vector<Face> 
 		Face face = *itFace;
 
 		//* 画出矩形
-		Rect rectObj(face.xLeftBottom, face.yLeftBottom, (face.xRightTop - face.xLeftBottom), (face.yRightTop - face.yLeftBottom));
+		Rect rectObj(face.nLeftTopX, face.nLeftTopY, (face.nRightBottomX - face.nLeftTopX), (face.nRightBottomY - face.nLeftTopY));
 		rectangle(matImg, rectObj, Scalar(0, 255, 0));
 
 		//* 在被监测图片上输出可信度概率
@@ -884,10 +886,10 @@ MACHINEVISIONLIB void cv2shell::MarkFaceWithRectangle(Mat &matImg, vector<Face> 
 
 		INT nBaseLine = 0;
 		Size labelSize = getTextSize(strLabel, FONT_HERSHEY_SIMPLEX, 0.5, 1, &nBaseLine);
-		rectangle(matImg, Rect(Point(face.xLeftBottom, face.yLeftBottom - labelSize.height),
+		rectangle(matImg, Rect(Point(face.nLeftTopX, face.nLeftTopY - labelSize.height),
 			Size(labelSize.width, labelSize.height + nBaseLine)),
 			Scalar(255, 255, 255), CV_FILLED);
-		putText(matImg, strLabel, Point(face.xLeftBottom, face.yLeftBottom), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(0, 0, 0));
+		putText(matImg, strLabel, Point(face.nLeftTopX, face.nLeftTopY), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(0, 0, 0));
 		//* ======================================================================================
 	}
 
@@ -952,10 +954,10 @@ MACHINEVISIONLIB void cv2shell::ObjectDetect(Mat &matImg, Net &dnnNet, vector<st
 
 		RecogCategory category;
 
-		category.xLeftBottom = static_cast<INT>(matIdentifyObjects.at<FLOAT>(i, 3) * matImg.cols);
-		category.yLeftBottom = static_cast<INT>(matIdentifyObjects.at<FLOAT>(i, 4) * matImg.rows);
-		category.xRightTop = static_cast<INT>(matIdentifyObjects.at<FLOAT>(i, 5) * matImg.cols);
-		category.yRightTop = static_cast<INT>(matIdentifyObjects.at<FLOAT>(i, 6) * matImg.rows);
+		category.nLeftTopX = static_cast<INT>(matIdentifyObjects.at<FLOAT>(i, 3) * matImg.cols);
+		category.nLeftTopY = static_cast<INT>(matIdentifyObjects.at<FLOAT>(i, 4) * matImg.rows);
+		category.nRightBottomX = static_cast<INT>(matIdentifyObjects.at<FLOAT>(i, 5) * matImg.cols);
+		category.nRightBottomY = static_cast<INT>(matIdentifyObjects.at<FLOAT>(i, 6) * matImg.rows);
 
 		category.flConfidenceVal = flConfidenceVal;
 
@@ -1026,7 +1028,7 @@ MACHINEVISIONLIB void cv2shell::MarkObjectWithRectangle(Mat &matImg, vector<Reco
 		RecogCategory object = *itObject;
 
 		//* 画出矩形
-		Rect rectObj(object.xLeftBottom, object.yLeftBottom, (object.xRightTop - object.xLeftBottom), (object.yRightTop - object.yLeftBottom));
+		Rect rectObj(object.nLeftTopX, object.nLeftTopY, (object.nRightBottomX - object.nLeftTopX), (object.nRightBottomY - object.nLeftTopX));
 		rectangle(matImg, rectObj, Scalar(0, 255, 0));
 
 		//* 在被监测图片上输出可信度概率
@@ -1038,10 +1040,10 @@ MACHINEVISIONLIB void cv2shell::MarkObjectWithRectangle(Mat &matImg, vector<Reco
 
 		INT nBaseLine = 0;
 		Size labelSize = getTextSize(strLabel, FONT_HERSHEY_SIMPLEX, 0.5, 1, &nBaseLine);
-		rectangle(matImg, Rect(Point(object.xLeftBottom, object.yLeftBottom - labelSize.height),
+		rectangle(matImg, Rect(Point(object.nLeftTopX, object.nLeftTopY - labelSize.height),
 			Size(labelSize.width, labelSize.height + nBaseLine)),
 			Scalar(255, 255, 255), CV_FILLED);
-		putText(matImg, strLabel, Point(object.xLeftBottom, object.yLeftBottom), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(0, 0, 0));
+		putText(matImg, strLabel, Point(object.nLeftTopX, object.nLeftTopY), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(0, 0, 0));
 		//* ======================================================================================
 	}
 

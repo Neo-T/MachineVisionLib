@@ -87,10 +87,10 @@ public:
 	float flConfidenceVal;
 	string strCategoryName;
 
-	INT xLeftBottom;
-	INT yLeftBottom;
-	INT xRightTop;
-	INT yRightTop;
+	INT nLeftTopX;
+	INT nLeftTopY;
+	INT nRightBottomX;
+	INT nRightBottomY;
 };
 
 class MACHINEVISIONLIB Face {
@@ -98,10 +98,10 @@ public:
 	Face() : flConfidenceVal(0){}
 	float flConfidenceVal;
 
-	INT xLeftBottom;
-	INT yLeftBottom;
-	INT xRightTop;
-	INT yRightTop;
+	INT nLeftTopX;
+	INT nLeftTopY;
+	INT nRightBottomX;
+	INT nRightBottomY;
 };
 
 //* 用于网络实时视频处理的回调函数原型声明

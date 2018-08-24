@@ -13,12 +13,12 @@
 //* 关于VLC参数的详细说明参见：https://blog.csdn.net/jxbinwd/article/details/72722833
 static CHAR* const l_pbaVLCBaseArgs[] =	//* const确保o_pbaVLCArg本身的值也就是地址不会被修改	
 {
-	"-I",
-	"dummy",
-	"--ignore-config"
-	//"--longhelp",		//* 这两个参数可以打开VLC的参数说明，不过内容很多，最好在控制台将其重定向到TXT文件再看
-	//"--advanced",
-	//"--rtsp-frame-buffer-size=1500000",	//* 如果不设置这个，vlc会自动寻找一个合适的，建议不设置，只不过启动时会慢一些，如果视频的分辨率过大的话
+	"-I"
+	, "dummy"
+	"--ignore-config" 	
+	//, "--rtsp-frame-buffer-size=1500000"	//* 如果不设置这个，vlc会自动寻找一个合适的，建议不设置，只不过启动时会慢一些，如果视频的分辨率过大的话
+	//, "--longhelp"						//* 这两个参数可以打开VLC的参数说明，不过内容很多，最好在控制台将其重定向到TXT文件再看
+	//, "--advanced"
 };
 
 //* VLC回调函数之锁定帧数据缓冲区函数，参数pvCBInputParam是传给回调函数的用户自定义参数
@@ -81,13 +81,13 @@ void VLCVideoPlayer::OpenVideoFromFile(const CHAR *pszFile, PFCB_DISPLAY_PREPROC
 	}
 	
 	//* 初始化视频帧Matrix
-	if (o_unAdjustedWidth)	
+	if (!o_unAdjustedWidth)	
 		o_unAdjustedWidth = DEFAULT_VIDEO_FRAME_WIDTH;
 	if (enumAspectRatio == AR_16_9)	
 		o_unAdjustedHeight = (o_unAdjustedWidth / 16) * 9;
 	else
 		o_unAdjustedHeight = (o_unAdjustedWidth / 4) * 3;
-	o_mVideoFrameRGB = Mat(Size(o_unAdjustedWidth, o_unAdjustedHeight), CV_8UC3);
+	o_mVideoFrameRGB = Mat(Size(o_unAdjustedWidth, o_unAdjustedHeight), CV_8UC3);	
 
 	o_pstVLCInstance = libvlc_new(unArgc, ppbaVLCArgs);	
 	delete[] ppbaVLCArgs;	//* 删除刚才申请的参数缓冲区，libvlc_new()调用后就不用了
@@ -96,7 +96,7 @@ void VLCVideoPlayer::OpenVideoFromFile(const CHAR *pszFile, PFCB_DISPLAY_PREPROC
 	o_pstVLCMediaPlayer = libvlc_media_player_new_from_media(pstVLCMedia);
 	libvlc_media_release(pstVLCMedia);	//* libvlc_media_player_new_from_media()调用完毕后，释放就可以了
 
-	libvlc_video_set_callbacks(o_pstVLCMediaPlayer, FCBLock, FCBUnlock, FCBDisplay, NULL);								//* 设定回调函数
+	libvlc_video_set_callbacks(o_pstVLCMediaPlayer, FCBLock, FCBUnlock, FCBDisplay, this);								//* 设定回调函数
 	libvlc_video_set_format(o_pstVLCMediaPlayer, "RV24", o_unAdjustedWidth, o_unAdjustedHeight, o_unAdjustedWidth * 3);	//* 设定播放格式	
 
 	o_strDisplayWinName = pszDisplayWinName;
@@ -206,4 +206,6 @@ VLCVideoPlayer::~VLCVideoPlayer() {
 	o_mVideoFrameRGB.release();
 	o_mVideoFrameBGR.release();
 	o_mDisplayFrame.release();
+
+	cout << "VLC player has successfully quit!" << endl;
 };

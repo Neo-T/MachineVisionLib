@@ -84,7 +84,7 @@ Mat FaceDatabase::ExtractFaceChips(Mat& matImg, FLOAT flScale, INT nMinNeighbors
 	{
 		cout << "Error: No face was detected." << endl;
 		return matDummy;
-	}
+	}	
 
 	//* 单张图片只允许存在一个人脸
 	if (*pnFaces != 1)
@@ -429,7 +429,7 @@ DOUBLE FaceDatabase::Predict(Mat& matImg, string& strPersonName, FLOAT flConfide
 	Mat matFaceChips = ExtractFaceChips(matImg);
 	if (matFaceChips.empty())
 	{
-		cout << "No face was detected." << endl;
+		//cout << "No face was detected." << endl;
 		return 0;
 	}
 
@@ -480,17 +480,17 @@ vector<ST_PERSON> FaceDatabase::VideoPredict::Predict(Mat& matVideoImg, FLOAT fl
 		//* 矩形框出人脸
 		Point left(x, y);
 		Point right(x + nWidth, y + nHeight);
-		rectangle(matVideoImg, left, right, Scalar(230, 255, 0), 1);
-
+		rectangle(matVideoImg, left, right, Scalar(0, 255, 0), 1);		
+		
 		Mat matFaceChips;
-		__ExtractFaceFeatureChips(matGray, psScalar, matFaceChips);
+		__ExtractFaceFeatureChips(matGray, psScalar, matFaceChips);		
 
 		//* 预测并标记
 		INT nBaseLine = 0;
 		String strPersonLabel;
 		string strConfidenceLabel;
 		Rect rect;		
-		ST_PERSON stPerson;
+		ST_PERSON stPerson;		
 		stPerson.dblConfidence = __Predict(pface_db, matFaceChips, stPerson.strPersonName, flConfidenceThreshold, flStopPredictThreshold);
 		if (stPerson.dblConfidence > flConfidenceThreshold)
 		{
