@@ -480,10 +480,10 @@ vector<ST_PERSON> FaceDatabase::VideoPredict::Predict(Mat& matVideoImg, FLOAT fl
 		//* 矩形框出人脸
 		Point left(x, y);
 		Point right(x + nWidth, y + nHeight);
-		rectangle(matVideoImg, left, right, Scalar(0, 255, 0), 1);		
+		rectangle(matVideoImg, left, right, Scalar(0, 255, 0), 1);	
 		
 		Mat matFaceChips;
-		__ExtractFaceFeatureChips(matGray, psScalar, matFaceChips);		
+		__ExtractFaceFeatureChips(matGray, psScalar, matFaceChips);			
 
 		//* 预测并标记
 		INT nBaseLine = 0;

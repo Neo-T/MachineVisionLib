@@ -68,9 +68,10 @@ private:
 	libvlc_instance_t *o_pstVLCInstance;			//* VLC实例
 	libvlc_media_player_t *o_pstVLCMediaPlayer;		//* VLC播放器
 
-	Mat o_mVideoFrameRGB;		//* 读取到的原始视频帧，RGB格式
-	Mat o_mVideoFrameBGR;		//* Opencv缺省使用的BGR格式的视频帧，用于后期处理
-	Mat o_mDisplayFrame;		//* 用于显示的帧数据
+	UCHAR *o_pubaVideoFrameData;	//* 视频帧数据缓冲区
+	UINT o_unFrameDataBufSize;		//* 帧数据缓冲区容量
+
+	Mat o_mVideoFrame;				//* Opencv视频帧
 
 	PFCB_DISPLAY_PREPROCESSOR o_pfcbDispPreprocessor;	//* 视频显示前的预处理函数
 	string o_strDisplayWinName;							//* 显示显示窗口的名称
@@ -80,5 +81,5 @@ private:
 	UINT o_unPrevFrameIdx;
 
 	UINT o_unAdjustedWidth;		//* 调用者指定要调整到的图像宽度，系统将据此调整图像的分辨率到该宽度，图像高度按指定画面比例调整
-	UINT o_unAdjustedHeight;
+	UINT o_unAdjustedHeight;	
 };

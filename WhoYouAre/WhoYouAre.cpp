@@ -8,6 +8,11 @@
 #include <tchar.h>
 #include <io.h>
 #include <vector>
+#include <dlib/opencv.h>
+#include <dlib/image_processing/frontal_face_detector.h>
+#include <dlib/image_processing.h>
+//#include <dlib/image_io.h>
+//#include <dlib/opencv/cv_image.h>
 #include "common_lib.h"
 #include "MachineVisionLib.h"
 #include "FaceRecognition.h"
@@ -303,6 +308,8 @@ static void __MVLVideoDispPreprocessor(Mat& mVideoFrame, void *pvParam, UINT unC
 #endif
 }
 
+using namespace dlib;
+
 //* 通过网络摄像头识别
 static void __MVLVideoFaceHandler(const CHAR *pszURL, BOOL blIsCatchFace, BOOL blIsRTSPStream)
 {
@@ -335,7 +342,7 @@ static void __MVLVideoFaceHandler(const CHAR *pszURL, BOOL blIsCatchFace, BOOL b
 
 #if VLCPLAYER_DISPLAY_EN
 	cvNamedWindow(pszURL, CV_WINDOW_AUTOSIZE);
-#endif
+#endif	
 
 	if (blIsRTSPStream)
 	{
@@ -384,6 +391,13 @@ static void __MVLVideoFaceHandler(const CHAR *pszURL, BOOL blIsCatchFace, BOOL b
 	objVideoPlayer.SetDispPreprocessorInputParam(&stFCBDispPreprocParam);
 #endif
 	
+	frontal_face_detector detector = get_frontal_face_detector();
+	shape_predictor pose_model;
+	deserialize("C:\\OpenCV3.4\\dlib-19.10\\models\\shape_predictor_68_face_landmarks.dat") >> pose_model;
+
+	CascadeClassifier a;
+	a.load("C:\\OpenCV3.4\\opencv\\build\\etc\\haarcascades\\haarcascade_frontalface_alt2.xml");
+
 	CHAR bKey;
 	BOOL blIsPaused = FALSE;
 	while (TRUE)
@@ -408,11 +422,41 @@ static void __MVLVideoFaceHandler(const CHAR *pszURL, BOOL blIsCatchFace, BOOL b
 		}	
 
 #if !VLCPLAYER_DISPLAY_PREDICT_RESULT
-		Mat mFrame = objVideoPlayer.GetNextFrame();
-		if (mFrame.empty())
+		Mat mSrcFrame = objVideoPlayer.GetNextFrame();
+		if (mSrcFrame.empty())
 			continue;
 
-		objFaceDB.pvideo_predict->Predict(mFrame);
+		Mat mFrame = mSrcFrame.clone();
+		Mat mGray;
+		cvtColor(mFrame, mGray, CV_BGR2GRAY);		
+		std::vector<cv::Rect> faces;
+
+		a.detectMultiScale(mGray, faces, 1.1, 3, 0, Size(50, 50), Size(500, 500));
+
+
+		//cv_image<bgr_pixel> cimg(mFrame);
+		// Detect faces 
+		//std::vector<dlib::rectangle> faces = detector(cimg);
+
+		std::vector<full_object_detection> shapes;
+
+		cout << faces.size() << endl;
+		
+		for (unsigned long i = 0; i < faces.size(); ++i)
+		{
+			dlib::rectangle rect(faces[i].tl().x, faces[i].tl().y, faces[i].br().x, faces[i].br().y);
+			shapes.push_back(pose_model(dlib::cv_image<uchar>(mGray), rect));
+		}
+
+		if (!shapes.empty()) {
+			for (int i = 0; i < 68; i++) {
+				circle(mFrame, cvPoint(shapes[0].part(i).x(), shapes[0].part(i).y()), 3, cv::Scalar(0, 0, 255), -1);
+				//	shapes[0].part(i).x();//68个
+			}
+		}
+
+
+		//objFaceDB.pvideo_predict->Predict(mFrame);
 
 		imshow("Predict Result", mFrame);
 #else

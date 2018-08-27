@@ -26,7 +26,8 @@ static CHAR* const l_pbaVLCBaseArgs[] =	//* const确保o_pbaVLCArg本身的值也就是地
 void *VLCVideoPlayer::FCBLock(void *pvCBInputParam, void **ppvFrameBuf)
 {	
 	VLCVideoPlayer *pobjVideoPlayer = (VLCVideoPlayer *)pvCBInputParam;
-	*ppvFrameBuf = pobjVideoPlayer->o_mVideoFrameRGB.data;
+	//*ppvFrameBuf = pobjVideoPlayer->o_mVideoFrameRGB.data;
+	*ppvFrameBuf = pobjVideoPlayer->o_pubaVideoFrameData;		
 
 	return *ppvFrameBuf;
 }
@@ -35,11 +36,10 @@ void *VLCVideoPlayer::FCBLock(void *pvCBInputParam, void **ppvFrameBuf)
 void VLCVideoPlayer::FCBUnlock(void *pvCBInputParam, void *pvFrameData, void* const *ppvFrameBuf)
 {
 	VLCVideoPlayer *pobjVideoPlayer = (VLCVideoPlayer *)pvCBInputParam;
+	Mat mVideoFrameRGB = Mat(pobjVideoPlayer->o_unAdjustedHeight, pobjVideoPlayer->o_unAdjustedWidth, CV_8UC3, pobjVideoPlayer->o_pubaVideoFrameData);
+	cvtColor(mVideoFrameRGB, pobjVideoPlayer->o_mVideoFrame, CV_RGB2BGR);
 
-	cvtColor(pobjVideoPlayer->o_mVideoFrameRGB, pobjVideoPlayer->o_mVideoFrameBGR, CV_RGB2BGR);
-
-	pobjVideoPlayer->o_mVideoFrameBGR.copyTo(pobjVideoPlayer->o_mDisplayFrame);
-	pobjVideoPlayer->o_unNextFrameIdx++;
+	pobjVideoPlayer->o_unNextFrameIdx++;	
 }
 
 //* VLC回调函数之显示函数
@@ -48,19 +48,20 @@ void VLCVideoPlayer::FCBDisplay(void *pvCBInputParam, void *pvFrameData)
 	VLCVideoPlayer *pobjVideoPlayer = (VLCVideoPlayer *)pvCBInputParam;
 
 	if (pobjVideoPlayer->o_pfcbDispPreprocessor)
-	{
-		pobjVideoPlayer->o_pfcbDispPreprocessor(pobjVideoPlayer->o_mDisplayFrame, pobjVideoPlayer->o_pvFunCBDispPreprocParam, pobjVideoPlayer->o_unNextFrameIdx);
-		imshow(pobjVideoPlayer->o_strDisplayWinName, pobjVideoPlayer->o_mDisplayFrame);		
-	}
+	{		
+		pobjVideoPlayer->o_pfcbDispPreprocessor(pobjVideoPlayer->o_mVideoFrame, pobjVideoPlayer->o_pvFunCBDispPreprocParam, pobjVideoPlayer->o_unNextFrameIdx);
+		imshow(pobjVideoPlayer->o_strDisplayWinName, pobjVideoPlayer->o_mVideoFrame);
+	}	
 }
 
 Mat VLCVideoPlayer::GetNextFrame(void)
 {
 	//* 看看下一帧数据是否已经到达
 	if (o_unPrevFrameIdx != o_unNextFrameIdx)
-	{
+	{				
 		o_unPrevFrameIdx = o_unNextFrameIdx;
-		return o_mVideoFrameBGR;
+		
+		return o_mVideoFrame;		
 	}
 	else
 	{
@@ -87,7 +88,8 @@ void VLCVideoPlayer::OpenVideoFromFile(const CHAR *pszFile, PFCB_DISPLAY_PREPROC
 		o_unAdjustedHeight = (o_unAdjustedWidth / 16) * 9;
 	else
 		o_unAdjustedHeight = (o_unAdjustedWidth / 4) * 3;
-	o_mVideoFrameRGB = Mat(Size(o_unAdjustedWidth, o_unAdjustedHeight), CV_8UC3);	
+	o_unFrameDataBufSize = o_unAdjustedWidth * o_unAdjustedHeight * 3;	
+	o_pubaVideoFrameData = new UCHAR[o_unFrameDataBufSize];	
 
 	o_pstVLCInstance = libvlc_new(unArgc, ppbaVLCArgs);	
 	delete[] ppbaVLCArgs;	//* 删除刚才申请的参数缓冲区，libvlc_new()调用后就不用了
@@ -136,10 +138,11 @@ void VLCVideoPlayer::OpenVideoFromeRtsp(const CHAR *pszURL, PFCB_DISPLAY_PREPROC
 		o_unAdjustedHeight = (o_unAdjustedWidth / 16) * 9;
 	else
 		o_unAdjustedHeight = (o_unAdjustedWidth / 4) * 3;
-	o_mVideoFrameRGB = Mat(Size(o_unAdjustedWidth, o_unAdjustedHeight), CV_8UC3);
+	o_unFrameDataBufSize = o_unAdjustedWidth * o_unAdjustedHeight * 3;	
+	o_pubaVideoFrameData = new UCHAR[o_unFrameDataBufSize];
 
 	//cout << o_unAdjustedWidth << " * " << o_unAdjustedHeight << endl;
-
+	
 	o_pstVLCInstance = libvlc_new(unArgc, ppbaVLCArgs);
 	delete[] ppbaVLCArgs;	//* 删除刚才申请的参数缓冲区，libvlc_new()调用后就不用了
 
@@ -202,10 +205,9 @@ VLCVideoPlayer::~VLCVideoPlayer() {
 	libvlc_media_player_release(o_pstVLCMediaPlayer);
 	libvlc_release(o_pstVLCInstance);
 
-	//* 注意这个顺序，libvlc库在stop之前一直在使用它们，因此至少是stop后才能释放
-	o_mVideoFrameRGB.release();
-	o_mVideoFrameBGR.release();
-	o_mDisplayFrame.release();
+	//* 注意这个顺序，libvlc库在stop之前一直在使用它们，因此至少是stop后才能释放	
+	o_mVideoFrame.release();
+	delete[] o_pubaVideoFrameData;
 
 	cout << "VLC player has successfully quit!" << endl;
 };

@@ -5,7 +5,7 @@
 
 #define VLCPLAYER_DISPLAY_PREDICT_RESULT		0		//* 是否在播放器显示窗口显示预测结果，其实就是显示和预测两个线程分别处理，以提升性能
 #define FACE_DETECT_USE_DNNNET					0		//* 使用DNN网络检测人脸
-#define VLCPLAYER_DISPLAY_EN					1		//* VLC播放器显示使能
+#define VLCPLAYER_DISPLAY_EN					0		//* VLC播放器显示使能
 
 #define FACE_DISAPPEAR_FRAME_NUM				60		//* 判定人脸已经消失的帧数，这个用于释放人脸数据占据的内存
 #define MIN_PIXEL_DISTANCE_FOR_NEW_FACE			50		//* 两帧之间只要脸部坐标不超过该数值则认为还是原来的脸
