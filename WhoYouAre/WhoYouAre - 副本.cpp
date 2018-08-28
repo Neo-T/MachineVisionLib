@@ -28,10 +28,10 @@
 //* 添加人脸
 static BOOL __AddFace(const CHAR *pszFaceImgFile, const CHAR *pezPersonName)
 {
-	FaceDatabase objFaceDB;
+	FaceDatabase face_db;
 
 	//* 看看是否已经添加到数据库中
-	if (objFaceDB.IsPersonAdded(pezPersonName))
+	if (face_db.IsPersonAdded(pezPersonName))
 	{
 		cout << pezPersonName << " has been added to the face database." << endl;
 
@@ -40,7 +40,7 @@ static BOOL __AddFace(const CHAR *pszFaceImgFile, const CHAR *pezPersonName)
 
 
 	//* 加载特征提取网络
-	if (!objFaceDB.LoadCaffeVGGNet("C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE_extract_deploy.prototxt",
+	if (!face_db.LoadCaffeVGGNet("C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE_extract_deploy.prototxt",
 		"C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE.caffemodel"))
 	{
 		cout << "Load Failed, the process will be exited!" << endl;
@@ -48,7 +48,7 @@ static BOOL __AddFace(const CHAR *pszFaceImgFile, const CHAR *pezPersonName)
 		return FALSE;
 	}
 
-	if (objFaceDB.AddFace(pszFaceImgFile, pezPersonName))
+	if (face_db.AddFace(pszFaceImgFile, pezPersonName))
 	{
 		cout << pezPersonName << " was successfully added to the face database." << endl;
 
@@ -61,15 +61,15 @@ static BOOL __AddFace(const CHAR *pszFaceImgFile, const CHAR *pezPersonName)
 //* 通过图片预测人脸
 static void __PicturePredict(const CHAR *pszFaceImgFile)
 {
-	FaceDatabase objFaceDB;
+	FaceDatabase face_db;
 
-	if (!objFaceDB.LoadFaceData())
+	if (!face_db.LoadFaceData())
 	{
 		cout << "Load face data failed, the process will be exited!" << endl;
 		return;
 	}
 
-	if (!objFaceDB.LoadCaffeVGGNet("C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE_extract_deploy.prototxt",
+	if (!face_db.LoadCaffeVGGNet("C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE_extract_deploy.prototxt",
 		"C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE.caffemodel"))
 	{
 		cout << "Load Failed, the process will be exited!" << endl;
@@ -78,7 +78,7 @@ static void __PicturePredict(const CHAR *pszFaceImgFile)
 
 	cout << "Start find ..." << endl;
 	string strPersonName;
-	DOUBLE dblSimilarity = objFaceDB.Predict(pszFaceImgFile, strPersonName);
+	DOUBLE dblSimilarity = face_db.Predict(pszFaceImgFile, strPersonName);
 	if (dblSimilarity > 0.55)
 	{
 		cout << "Found a matched face: 『" << strPersonName << "』, the similarity is " << dblSimilarity << endl;
@@ -150,9 +150,26 @@ static BOOL __MVLVideoSaveFace(Mat& mFace, UINT unFaceID)
 	return FALSE;
 }
 
-//* MVL播放器显示预处理函数
+//* 网络摄像机实时预测人脸
+void __MVLVideoPredict(Mat& mFace, UINT unFaceID, FaceDatabase *pobjFaceDB, unordered_map<UINT, ST_FACE> *pmapFaces, Face *pobjFace)
+{
+	Mat mFaceGray;
+	cvtColor(mFace, mFaceGray, CV_BGR2GRAY);	
+
+	string strPersonName;
+	DOUBLE dblSimilarity = pobjFaceDB->o_pobjVideoPredict->Predict(mFaceGray, *pobjFace, pobjFaceDB->o_objShapePredictor, strPersonName);
+	if (dblSimilarity > 0.8)
+	{		
+		(*pmapFaces)[unFaceID].strPersonName = strPersonName;
+		(*pmapFaces)[unFaceID].flPredictConfidence = (FLOAT)dblSimilarity;		
+	}
+}
+
 static void __MVLVideoDispPreprocessor(Mat& mVideoFrame, void *pvParam, UINT unCurFrameIdx)
 {	
+	static UINT unFaceID = 0;
+	BOOL blIsNotFound;	
+
 	//* 按照预训练模型的Size，输入图像必须是300 x 300，大部分图像基本是16：9或4：3，很少等比例的，为了避免图像变形，我们只好截取图像中间最大面积的正方形区域识别人脸
 	Mat mROI;
 	if (mVideoFrame.cols > mVideoFrame.rows)
@@ -167,54 +184,128 @@ static void __MVLVideoDispPreprocessor(Mat& mVideoFrame, void *pvParam, UINT unC
 	if (matFaces.empty())
 		return;	
 
-	//* 识别每张人脸
+	//* 在视频上显示预测结果，这里是先显示再更新脸库，以减少不必要的处理（比如新添加的脸不必要显示，因为还未预测）
+	EnterThreadMutex(pstParam->pthMutexMapFaces);
+	{
+		unordered_map<UINT, ST_FACE>::iterator iterFace;
+		for (iterFace = pstParam->pmapFaces->begin(); iterFace != pstParam->pmapFaces->end(); iterFace++)
+		{
+			//* 有结果了，显示人名
+			if (iterFace->second.flPredictConfidence > 0.0f)
+			{
+				//* 画出矩形
+				Rect rectObj(iterFace->second.nLeftTopX, iterFace->second.nLeftTopY, (iterFace->second.nRightBottomX - iterFace->second.nLeftTopX), (iterFace->second.nRightBottomY - iterFace->second.nLeftTopY));
+				cv::rectangle(mROI, rectObj, Scalar(0, 255, 0));
+
+				INT nBaseLine = 0;
+				String strPersonLabel;
+				string strConfidenceLabel;
+				Rect rect;
+
+				//* 标出人名和可信度
+				strPersonLabel = "Name: " + iterFace->second.strPersonName;
+				strConfidenceLabel = "Confidence: " + static_cast<ostringstream*>(&(ostringstream() << iterFace->second.flPredictConfidence))->str();
+
+				Size personLabelSize = getTextSize(strPersonLabel, FONT_HERSHEY_SIMPLEX, 0.5, 1, &nBaseLine);
+				Size confidenceLabelSize = getTextSize(strConfidenceLabel, FONT_HERSHEY_SIMPLEX, 0.5, 1, &nBaseLine);
+				rect = Rect(Point(iterFace->second.nLeftTopX, iterFace->second.nLeftTopY - (personLabelSize.height + confidenceLabelSize.height + 3)),
+							Size(personLabelSize.width > confidenceLabelSize.width ? personLabelSize.width : confidenceLabelSize.width,
+							personLabelSize.height + confidenceLabelSize.height + nBaseLine + 3));
+				cv::rectangle(mROI, rect, Scalar(255, 255, 255), CV_FILLED);
+				putText(mROI, strPersonLabel, Point(iterFace->second.nLeftTopX, iterFace->second.nLeftTopY - confidenceLabelSize.height - 3), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(107, 194, 53));
+				putText(mROI, strConfidenceLabel, Point(iterFace->second.nLeftTopX, iterFace->second.nLeftTopY), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(107, 194, 53));
+			}
+		}
+	}
+	ExitThreadMutex(pstParam->pthMutexMapFaces);
+
+	//cv2shell::MarkFaceWithRectangle(mROI, matFaces, 0.8);		
+
+	//* 取出人脸并保存之
 	for (INT i = 0; i < matFaces.rows; i++)
 	{ 
 		FLOAT flConfidenceVal = matFaces.at<FLOAT>(i, 2);
 		if (flConfidenceVal < FACE_DETECT_MIN_CONFIDENCE_THRESHOLD)
 			continue;
 
+		blIsNotFound = TRUE;
+
 		INT nCurLTX = static_cast<INT>(matFaces.at<FLOAT>(i, 3) * mROI.cols);
 		INT nCurLTY = static_cast<INT>(matFaces.at<FLOAT>(i, 4) * mROI.rows);
 		INT nCurRBX = static_cast<INT>(matFaces.at<FLOAT>(i, 5) * mROI.cols);
 		INT nCurRBY = static_cast<INT>(matFaces.at<FLOAT>(i, 6) * mROI.rows);		
 
-		Mat mFaceGray;
-		cvtColor(mROI, mFaceGray, CV_BGR2GRAY);
-
-		Face objFace(nCurLTX, nCurLTY, nCurRBX, nCurRBY);
-		string strPersonName;
-		DOUBLE dblConfidence = pstParam->pobjFaceDB->o_pobjVideoPredict->Predict(mFaceGray, objFace, pstParam->pobjFaceDB->o_objShapePredictor, strPersonName);
-		if (dblConfidence > 0.8f)
+		//* 遍历脸部数据库，看前面是否已将其添加到库中，没有的则添加，有的则更新坐标及脸部图像数据
+		EnterThreadMutex(pstParam->pthMutexMapFaces);
 		{
-			//* 画出矩形
-			Rect rectObj(nCurLTX, nCurLTY, nCurRBX - nCurLTX, nCurRBY - nCurLTY);
-			rectangle(mROI, rectObj, Scalar(0, 255, 0));
+			unordered_map<UINT, ST_FACE>::iterator iterFace;
+			for (iterFace = pstParam->pmapFaces->begin(); iterFace != pstParam->pmapFaces->end(); iterFace++)
+			{
+				INT nOldFaceLTX = iterFace->second.nLeftTopX;
+				INT nOldFaceLTY = iterFace->second.nLeftTopY;
+				INT nOldFaceRBX = iterFace->second.nRightBottomX;
+				INT nOldFaceRBY = iterFace->second.nRightBottomY;
 
-			INT nBaseLine = 0;
-			String strPersonLabel;
-			string strConfidenceLabel;
-			Rect rect;
+				//* 全部符合则初步认为是同一张脸，更新数据即可，不需要添加新脸
+				if (abs(nCurLTX - nOldFaceLTX) < MIN_PIXEL_DISTANCE_FOR_NEW_FACE &&
+					abs(nCurLTY - nOldFaceLTY) < MIN_PIXEL_DISTANCE_FOR_NEW_FACE &&
+					abs(nCurRBX - nOldFaceRBX) < MIN_PIXEL_DISTANCE_FOR_NEW_FACE &&
+					abs(nCurRBY - nOldFaceRBY) < MIN_PIXEL_DISTANCE_FOR_NEW_FACE &&
+					(unCurFrameIdx - iterFace->second.unFrameIdx) < FACE_DISAPPEAR_FRAME_NUM)
+				{
+					//* 保存坐标数据，可在前两段代码之前也可在之后
+					iterFace->second.nLeftTopX = nCurLTX;
+					iterFace->second.nLeftTopY = nCurLTY;
+					iterFace->second.nRightBottomX = nCurRBX;
+					iterFace->second.nRightBottomY = nCurRBY;
 
-			//* 标出人名和可信度
-			strPersonLabel = "Name: " + strPersonName;
-			strConfidenceLabel = "Confidence: " + static_cast<ostringstream*>(&(ostringstream() << dblConfidence))->str();
+					//* 将脸部图像存入内存					
+					iterFace->second.mFace = mROI.clone();
 
-			Size personLabelSize = getTextSize(strPersonLabel, FONT_HERSHEY_SIMPLEX, 0.5, 1, &nBaseLine);
-			Size confidenceLabelSize = getTextSize(strConfidenceLabel, FONT_HERSHEY_SIMPLEX, 0.5, 1, &nBaseLine);
-			rect = Rect(Point(nCurLTX, nCurLTY - (personLabelSize.height + confidenceLabelSize.height + 3)),
-				Size(personLabelSize.width > confidenceLabelSize.width ? personLabelSize.width : confidenceLabelSize.width,
-					personLabelSize.height + confidenceLabelSize.height + nBaseLine + 3));
-			cv::rectangle(mROI, rect, Scalar(255, 255, 255), CV_FILLED);
-			putText(mROI, strPersonLabel, Point(nCurLTX, nCurLTY - confidenceLabelSize.height - 3), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(107, 194, 53));
-			putText(mROI, strConfidenceLabel, Point(nCurLTX, nCurLTY), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(107, 194, 53));
+					//* 注意这个一定是在脸部数据存入后更新，这样可确保脸部数据已经被存入内存，其它线程不会得到过期的脸部数据
+					iterFace->second.unFrameIdx = unCurFrameIdx;
+
+					blIsNotFound = FALSE;
+					break;
+				}
+			}
+
+			//* 没有找到则添加之
+			if (blIsNotFound)
+			{
+				ST_FACE stFace;
+
+				//* 脸部坐标数据
+				stFace.nLeftTopX = nCurLTX;
+				stFace.nLeftTopY = nCurLTY;
+				stFace.nRightBottomX = nCurRBX;
+				stFace.nRightBottomY = nCurRBY;
+				stFace.flPredictConfidence = 0.0f;
+				stFace.unFrameIdxForPrediction = 0;				
+
+				//* 将脸部图像存入内存
+				stFace.mFace = mROI.clone();
+				stFace.unFrameIdx = unCurFrameIdx;
+
+				stFace.unFaceID = unFaceID++;
+
+				//* 添加到脸库
+				(*pstParam->pmapFaces)[stFace.unFaceID] = stFace;
+			}
 		}
+		ExitThreadMutex(pstParam->pthMutexMapFaces);		
 	}
 }
+
+using namespace dlib;
 
 //* 通过网络摄像头识别
 static void __MVLVideoFaceHandler(const CHAR *pszURL, BOOL blIsCatchFace, BOOL blIsRTSPStream)
 {
+	unordered_map<UINT, ST_FACE> mapFaces;	//* 网络摄像机检测到的多张人脸信息存储该map中
+	unordered_map<UINT, ST_FACE>::iterator iterFace;
+	THMUTEX thMutexMapFaces;
+
 	FaceDatabase objFaceDB;
 	if (!blIsCatchFace)	//* 预测，则加载预测网络
 	{
@@ -263,6 +354,9 @@ static void __MVLVideoFaceHandler(const CHAR *pszURL, BOOL blIsCatchFace, BOOL b
 	ST_VLCPLAYER_FCBDISPPREPROC_PARAM stFCBDispPreprocParam;
 	stFCBDispPreprocParam.pobjDNNNet = &dnnNet;
 	stFCBDispPreprocParam.pobjFaceDB = &objFaceDB;
+	stFCBDispPreprocParam.pmapFaces = &mapFaces;
+	InitThreadMutex(&thMutexMapFaces);	//* 对mapFaces的访问必须进行保护，因为这是两个线程并行运行
+	stFCBDispPreprocParam.pthMutexMapFaces = &thMutexMapFaces;
 	objVideoPlayer.SetDispPreprocessorInputParam(&stFCBDispPreprocParam);
 	
 	CHAR bKey;
@@ -293,12 +387,65 @@ static void __MVLVideoFaceHandler(const CHAR *pszURL, BOOL blIsCatchFace, BOOL b
 		//	continue;
 
 		//Mat mFrame = mSrcFrame.clone();
+
+		//* 识别人脸
+		for (iterFace = mapFaces.begin(); iterFace != mapFaces.end(); iterFace++)
+		{
+			//* 当前帧还未处理，处理之
+			if (iterFace->second.unFrameIdxForPrediction != iterFace->second.unFrameIdx)
+			{
+				Face *pobjFace;
+				Mat mFace;
+				UINT unCurFrameIdx;
+				EnterThreadMutex(&thMutexMapFaces);
+				{
+					pobjFace = new Face(iterFace->second.nLeftTopX, iterFace->second.nLeftTopY, iterFace->second.nRightBottomX, iterFace->second.nRightBottomY);
+					mFace = iterFace->second.mFace.clone();
+					unCurFrameIdx = iterFace->second.unFrameIdx;	//* 必须在这里赋值，否则有可能显示线程在上面的if(……unFrameIdxForPrediction != ……unFrameIdx)之后更新该值
+				}
+				ExitThreadMutex(&thMutexMapFaces);
+
+				if (blIsCatchFace)
+				{
+					//* 如果为真，则表明已经存储了一张人脸，进程直接退出即可
+					if (__MVLVideoSaveFace(mFace, iterFace->second.unFaceID))
+						goto __lblStop;											
+				}
+				else
+				{
+					__MVLVideoPredict(mFace, iterFace->second.unFaceID, &objFaceDB, &mapFaces, pobjFace);
+					delete pobjFace;
+				}					
+					
+				mapFaces[iterFace->second.unFaceID].unFrameIdxForPrediction = unCurFrameIdx;
+			}
+		}
+
+		//* 遍历，删除已经消失的人脸数据
+		EnterThreadMutex(&thMutexMapFaces);
+		{
+			UINT unCurFrameIdx = objVideoPlayer.GetCurFrameIndex();			
+			for (iterFace = mapFaces.begin(); iterFace != mapFaces.end();)
+			{
+				//* 超时则删除之
+				if ((unCurFrameIdx - iterFace->second.unFrameIdx) > FACE_DISAPPEAR_FRAME_NUM)
+				{
+					mapFaces.erase(iterFace++);	//* 注意，由于要删除元素，因此只能在这里++，在for中++的话会导致当前元素已删除，无法继续++
+												//* 在这里是先保存iterFace当前指向，然后++，然后再将保存的当前指向传递给erase()函数
+				}
+				else
+					iterFace++;	//* 下一个
+			}
+		}
+		ExitThreadMutex(&thMutexMapFaces);
 	}
 
 
 __lblStop:
 	//* 其实不调用这个函数也可以，VLCVideoPlayer类的析构函数会主动调用的
-	objVideoPlayer.stop();		
+	objVideoPlayer.stop();	
+
+	UninitThreadMutex(&thMutexMapFaces);
 
 	destroyAllWindows();
 }

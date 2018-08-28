@@ -611,7 +611,7 @@ MACHINEVISIONLIB Mat cv2shell::FaceDetect(Net &dnnNet, Mat &matImg, const Size &
 	//* 计算网络输出
 	Mat matDetection = dnnNet.forward("detection_out");
 
-	Mat matFaces(matDetection.size[2], matDetection.size[3], CV_32F, matDetection.ptr<float>());
+	Mat matFaces(matDetection.size[2], matDetection.size[3], CV_32F, matDetection.ptr<FLOAT>());
 
 	return matFaces;
 }
@@ -724,15 +724,15 @@ MACHINEVISIONLIB void cv2shell::FaceDetect(Net &dnnNet, Mat &matImg, vector<Face
 		if (flConfidenceVal < flConfidenceThreshold)
 			continue;
 
-		Face face;
+		Face objFace;
 
-		face.nLeftTopX = static_cast<INT>(matFaces.at<FLOAT>(i, 3) * matImg.cols);
-		face.nLeftTopY = static_cast<INT>(matFaces.at<FLOAT>(i, 4) * matImg.rows);
-		face.nRightBottomX = static_cast<INT>(matFaces.at<FLOAT>(i, 5) * matImg.cols);
-		face.nRightBottomY = static_cast<INT>(matFaces.at<FLOAT>(i, 6) * matImg.rows);
+		objFace.o_nLeftTopX = static_cast<INT>(matFaces.at<FLOAT>(i, 3) * matImg.cols);
+		objFace.o_nLeftTopY = static_cast<INT>(matFaces.at<FLOAT>(i, 4) * matImg.rows);
+		objFace.o_nRightBottomX = static_cast<INT>(matFaces.at<FLOAT>(i, 5) * matImg.cols);
+		objFace.o_nRightBottomY = static_cast<INT>(matFaces.at<FLOAT>(i, 6) * matImg.rows);
 
-		face.flConfidenceVal = flConfidenceVal;
-		vFaces.push_back(face);
+		objFace.o_flConfidenceVal = flConfidenceVal;
+		vFaces.push_back(objFace);
 	}
 }
 
@@ -871,25 +871,25 @@ MACHINEVISIONLIB void cv2shell::MarkFaceWithRectangle(Mat &matImg, vector<Face> 
 	vector<Face>::iterator itFace = vFaces.begin();
 	for (; itFace != vFaces.end(); itFace++)
 	{
-		Face face = *itFace;
+		Face objFace = *itFace;
 
 		//* 画出矩形
-		Rect rectObj(face.nLeftTopX, face.nLeftTopY, (face.nRightBottomX - face.nLeftTopX), (face.nRightBottomY - face.nLeftTopY));
+		Rect rectObj(objFace.o_nLeftTopX, objFace.o_nLeftTopY, (objFace.o_nRightBottomX - objFace.o_nLeftTopX), (objFace.o_nRightBottomY - objFace.o_nLeftTopY));
 		rectangle(matImg, rectObj, Scalar(0, 255, 0));
 
 		//* 在被监测图片上输出可信度概率
 		//* ======================================================================================
 		ostringstream oss;
-		oss << face.flConfidenceVal;
+		oss << objFace.o_flConfidenceVal;
 		String strConfidenceVal(oss.str());
 		String strLabel = "Face: " + strConfidenceVal;
 
 		INT nBaseLine = 0;
 		Size labelSize = getTextSize(strLabel, FONT_HERSHEY_SIMPLEX, 0.5, 1, &nBaseLine);
-		rectangle(matImg, Rect(Point(face.nLeftTopX, face.nLeftTopY - labelSize.height),
+		rectangle(matImg, Rect(Point(objFace.o_nLeftTopX, objFace.o_nLeftTopY - labelSize.height),
 			Size(labelSize.width, labelSize.height + nBaseLine)),
 			Scalar(255, 255, 255), CV_FILLED);
-		putText(matImg, strLabel, Point(face.nLeftTopX, face.nLeftTopY), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(0, 0, 0));
+		putText(matImg, strLabel, Point(objFace.o_nLeftTopX, objFace.o_nLeftTopY), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(0, 0, 0));
 		//* ======================================================================================
 	}
 

@@ -173,6 +173,15 @@ void VLCVideoPlayer::pause(BOOL blIsPaused)
 void VLCVideoPlayer::stop(void)
 {
 	libvlc_media_player_stop(o_pstVLCMediaPlayer);
+
+	//* µÈ´ý½áÊø
+	libvlc_state_t enumVLCPlayState;
+	while (TRUE)
+	{
+		enumVLCPlayState = libvlc_media_player_get_state(o_pstVLCMediaPlayer);
+		if (enumVLCPlayState == libvlc_Stopped || enumVLCPlayState == libvlc_Ended || enumVLCPlayState == libvlc_Error)
+			break;
+	}
 }
 
 BOOL VLCVideoPlayer::start(void)

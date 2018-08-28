@@ -95,13 +95,19 @@ public:
 
 class MACHINEVISIONLIB Face {
 public:
-	Face() : flConfidenceVal(0){}
-	float flConfidenceVal;
+	Face() : o_flConfidenceVal(0){}
+	Face(INT nLeftTopX, INT nLeftTopY, INT nRightBottomX, INT nRightBottomY) : o_flConfidenceVal(0) {
+		o_nLeftTopX = nLeftTopX;
+		o_nLeftTopY = nLeftTopY;
+		o_nRightBottomX = nRightBottomX;
+		o_nRightBottomY = nRightBottomY;
+	}
+	FLOAT o_flConfidenceVal;
 
-	INT nLeftTopX;
-	INT nLeftTopY;
-	INT nRightBottomX;
-	INT nRightBottomY;
+	INT o_nLeftTopX;
+	INT o_nLeftTopY;
+	INT o_nRightBottomX;
+	INT o_nRightBottomY;
 };
 
 //* 用于网络实时视频处理的回调函数原型声明

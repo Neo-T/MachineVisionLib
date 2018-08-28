@@ -7,8 +7,6 @@
 #include <string.h>
 #include <tchar.h>
 #include <vector>
-#include <dlib/image_processing.h>
-#include <dlib/opencv.h>
 #include <facedetect-dll.h>
 #include "common_lib.h"
 #include "MachineVisionLib.h"
@@ -18,19 +16,19 @@
 
 BOOL FaceDatabase::LoadCaffeVGGNet(string strCaffePrototxtFile, string strCaffeModelFile)
 {
-	pcaflNet = caffe2shell::LoadNet<FLOAT>(strCaffePrototxtFile, strCaffeModelFile, caffe::TEST);
+	o_pcaflNet = caffe2shell::LoadNet<FLOAT>(strCaffePrototxtFile, strCaffeModelFile, caffe::TEST);
 
-	if (pcaflNet)
+	if (o_pcaflNet)
 	{
-		pflMemDataLayer = (caffe::MemoryDataLayer<FLOAT> *)pcaflNet->layers()[0].get();
+		o_pflMemDataLayer = (caffe::MemoryDataLayer<FLOAT> *)o_pcaflNet->layers()[0].get();
 		return TRUE;
 	}
 	else
 		return FALSE;
 }
 
-//* //* 从一张完整图片中提取脸部特征图，该函数只能提取一张脸的
-static Mat __ExtractFaceFeatureChips(Mat& matGray, SHORT *psScalar, Mat& matFace)
+//* 从一张完整图片中提取脸部特征图，该函数只能提取一张脸的，参数mFaceFeatureChips为出口参数，接收提取的特征数据
+static void __ExtractFaceFeatureChips(Mat& mGray, SHORT *psScalar, Mat& mFaceFeatureChips)
 {
 	//* 获取68个脸部特征点，脸部到鼻子:0-35, 眼睛:36-47,嘴形：48-60，嘴线：61-67
 	vector<dlib::point> vFaceFeature;
@@ -48,89 +46,109 @@ static Mat __ExtractFaceFeatureChips(Mat& matGray, SHORT *psScalar, Mat& matFace
 	shapes.push_back(shape);
 
 	dlib::array<dlib::array2d<dlib::rgb_pixel>> FaceChips;
-	extract_image_chips(dlib::cv_image<uchar>(matGray), get_face_chip_details(shapes), FaceChips);
-	matFace = dlib::toMat(FaceChips[0]);
+	extract_image_chips(dlib::cv_image<uchar>(mGray), get_face_chip_details(shapes), FaceChips);
+	mFaceFeatureChips = dlib::toMat(FaceChips[0]);
 
 	//* 经过dlib处理后，matFace并不是灰度图像，需要转成灰度图像才可
-	cvtColor(matFace, matFace, CV_BGR2GRAY);
+	cvtColor(mFaceFeatureChips, mFaceFeatureChips, CV_BGR2GRAY);
 
 	//* 按照网络要求调整为224,224大小
-	resize(matFace, matFace, Size(224, 224));
+	resize(mFaceFeatureChips, mFaceFeatureChips, Size(224, 224));
+}
 
-	return matFace;
+//* 同上，从一张完整图片中提取脸部特征图，该函数只能提取一张脸的，参数mFaceFeatureChips为出口参数，接收提取的特征数据
+static void __ExtractFaceFeatureChips(dlib::shape_predictor& objShapePredictor, Mat& mFaceGray, Face& objFace, Mat& mFaceFeatureChips)
+{
+	vector<dlib::full_object_detection> vobjShapes;	
+
+	//* 提取68个特征点
+	dlib::rectangle objDLIBRect(objFace.o_nLeftTopX, objFace.o_nLeftTopY, objFace.o_nRightBottomX, objFace.o_nRightBottomY);
+	vobjShapes.push_back(objShapePredictor(dlib::cv_image<uchar>(mFaceGray), objDLIBRect));
+	if (vobjShapes.empty())
+		return;	
+
+	dlib::array<dlib::array2d<uchar>> objFaceChips;
+	extract_image_chips(dlib::cv_image<uchar>(mFaceGray), get_face_chip_details(vobjShapes), objFaceChips);
+	mFaceFeatureChips = dlib::toMat(objFaceChips[0]);
+
+	//* 经过dlib处理后，matFace并不是灰度图像，需要转成灰度图像才可
+	//cvtColor(mFaceFeatureChips, mFaceFeatureChips, CV_BGR2GRAY);
+
+	//* 按照网络要求调整为224,224大小
+	resize(mFaceFeatureChips, mFaceFeatureChips, Size(224, 224));
 }
 
 //* 从一张完整图片中提取脸部特征图
-Mat FaceDatabase::ExtractFaceChips(Mat& matImg, FLOAT flScale, INT nMinNeighbors, INT nMinPossibleFaceSize)
+Mat FaceDatabase::ExtractFaceChips(Mat& mImg, FLOAT flScale, INT nMinNeighbors, INT nMinPossibleFaceSize)
 {
-	Mat matDummy;
+	Mat mDummy;
 
 	INT *pnFaces = NULL;
 	UCHAR *pubResultBuf = (UCHAR*)malloc(LIBFACEDETECT_BUFFER_SIZE);
 	if (!pubResultBuf)
 	{
 		cout << "error para in " << __FUNCTION__ << "(), in file " << __FILE__ << ", line " << __LINE__ - 3 << ", malloc error code:" << GetLastError() << endl;
-		return matDummy;
+		return mDummy;
 	}
 
-	Mat matGray;
-	cvtColor(matImg, matGray, CV_BGR2GRAY);
+	Mat mGray;
+	cvtColor(mImg, mGray, CV_BGR2GRAY);
 
 	//* 带特征点检测，这个函数要比DLib的特征点检测函数稍微快一些
 	INT nLandmark = 1;
-	pnFaces = facedetect_multiview_reinforce(pubResultBuf, (UCHAR*)(matGray.ptr(0)), matGray.cols, matGray.rows, (INT)matGray.step,
+	pnFaces = facedetect_multiview_reinforce(pubResultBuf, (UCHAR*)(mGray.ptr(0)), mGray.cols, mGray.rows, (INT)mGray.step,
 												flScale, nMinNeighbors, nMinPossibleFaceSize, 0, nLandmark);
 	if (!pnFaces)
 	{
 		cout << "Error: No face was detected." << endl;
-		return matDummy;
+		return mDummy;
 	}	
 
 	//* 单张图片只允许存在一个人脸
 	if (*pnFaces != 1)
 	{
 		cout << "Error: Multiple faces were detected, and only one face was allowed." << endl;
-		return matDummy;
+		return mDummy;
 	}
 
 	//* 获取68个脸部特征点，脸部到鼻子:0-35, 眼睛:36-47,嘴形：48-60，嘴线：61-67
 	SHORT *psScalar = ((SHORT*)(pnFaces + 1));
 
-	Mat matFace;
-	__ExtractFaceFeatureChips(matGray, psScalar, matFace);
+	Mat mFace;
+	__ExtractFaceFeatureChips(mGray, psScalar, mFace);
 	
 	free(pubResultBuf);
 
-	return matFace;
+	return mFace;
 }
 
 //* 同上
 Mat FaceDatabase::ExtractFaceChips(const CHAR *pszImgName, FLOAT flScale, INT nMinNeighbors, INT nMinPossibleFaceSize)
 {
-	Mat matImg = imread(pszImgName);
-	if (matImg.empty())
+	Mat mImg = imread(pszImgName);
+	if (mImg.empty())
 	{
 		cout << "ExtractFaceChips() error：unable to read the picture, please confirm that the picture『" << pszImgName << "』 exists and the format is corrrect." << endl;
 
-		return matImg;
+		return mImg;
 	}
 
-	return ExtractFaceChips(matImg, flScale, nMinNeighbors, nMinPossibleFaceSize);
+	return ExtractFaceChips(mImg, flScale, nMinNeighbors, nMinPossibleFaceSize);
 }
 
 //* 针对光照、采集设备设备变化等问题，我们针对人脸使用了结合gamma校正、差分高斯滤波(DoG)、对比度均衡化三种技术的光照预处理算法，理论及公式参见：
 //* https://blog.csdn.net/wuzuyu365/article/details/51898714
-Mat FaceDatabase::FaceChipsHandle(Mat& matFaceChips, DOUBLE dblPowerValue, DOUBLE dblGamma, DOUBLE dblNorm)
+Mat FaceDatabase::FaceChipsHandle(Mat& mFaceChips, DOUBLE dblPowerValue, DOUBLE dblGamma, DOUBLE dblNorm)
 {
-	Mat matDstChips;
+	Mat mDstChips;
 
 	//* 高通滤波核，对比测试结果，目前这个核最好：
 	//* 0.85-0.86 0.88-0.87 0.88-0.85 0.78-0.75
 	FLOAT flaHighFilterKernel[9] = { -1, -1, -1, -1, 9, -1, -1, -1, -1 };
-	imgpreproc::ContrastEqualizationWithFilter(matFaceChips, matDstChips, Size(3, 3), flaHighFilterKernel, dblGamma, dblPowerValue, dblNorm);
+	imgpreproc::ContrastEqualizationWithFilter(mFaceChips, mDstChips, Size(3, 3), flaHighFilterKernel, dblGamma, dblPowerValue, dblNorm);
 
 	//* 进入caffe提取特征之前，必须为RGB格式才可，否则caffe会报错
-	cvtColor(matDstChips, matDstChips, CV_GRAY2RGB);
+	cvtColor(mDstChips, mDstChips, CV_GRAY2RGB);
 
 	//imshow("FaceChipsHandle", matFloat);
 	//waitKey(600);
@@ -140,7 +158,7 @@ Mat FaceDatabase::FaceChipsHandle(Mat& matFaceChips, DOUBLE dblPowerValue, DOUBL
 	//fs << "MAT-DATA" << matFloat;	
 	//fs.release();
 
-	return matDstChips;
+	return mDstChips;
 }
 
 //* 看看该人是否已经添加到数据库中，避免重复添加
@@ -208,9 +226,9 @@ void FaceDatabase::GetFaceDBStatisInfo(PST_FACE_DB_STATIS_INFO pstInfo)
 	}
 }
 
-BOOL FaceDatabase::AddFace(Mat& matImg, const string& strPersonName)
+BOOL FaceDatabase::AddFace(Mat& mImg, const string& strPersonName)
 {
-	if (matImg.empty())
+	if (mImg.empty())
 	{
 		cout << "error para in " << __FUNCTION__ << "(), in file " << __FILE__ << ", line " << __LINE__ - 3 << ", the parameter matImg is empty." << GetLastError() << endl;
 		return FALSE;
@@ -223,8 +241,8 @@ BOOL FaceDatabase::AddFace(Mat& matImg, const string& strPersonName)
 	}
 
 	//* 从图片中提取脸部区域
-	Mat matFaceChips = ExtractFaceChips(matImg);
-	if (matFaceChips.empty())
+	Mat mFaceChips = ExtractFaceChips(mImg);
+	if (mFaceChips.empty())
 	{
 		cout << "No face was detected." << endl;
 		return FALSE;
@@ -234,16 +252,16 @@ BOOL FaceDatabase::AddFace(Mat& matImg, const string& strPersonName)
 	//cv::waitKey(60);
 
 	//* ROI(region of interest)，按照一定算法将脸部区域转换为caffe网络特征提取需要的输入数据
-	Mat matFaceROI = FaceChipsHandle(matFaceChips);
+	Mat mFaceROI = FaceChipsHandle(mFaceChips);
 
 	//* 通过caffe网络提取图像特征
-	Mat matImgFeature(1, FACE_FEATURE_DIMENSION, CV_32F);
-	caffe2shell::ExtractFeature(pcaflNet, pflMemDataLayer, matFaceROI, matImgFeature, FACE_FEATURE_DIMENSION, FACE_FEATURE_LAYER_NAME);
+	Mat mImgFeature(1, FACE_FEATURE_DIMENSION, CV_32F);
+	caffe2shell::ExtractFeature(o_pcaflNet, o_pflMemDataLayer, mFaceROI, mImgFeature, FACE_FEATURE_DIMENSION, FACE_FEATURE_LAYER_NAME);
 	
 	//* 将特征数据存入文件
 	string strXMLFile = string(FACE_DB_PATH) + "/" + strPersonName + ".xml";
 	FileStorage fs(strXMLFile, FileStorage::WRITE);
-	fs << "VGG-FACEFEATURE" << matImgFeature;
+	fs << "VGG-FACEFEATURE" << mImgFeature;
 	fs.release();
 
 	//* 保存人数和人名字节数，用于人脸数据库加载
@@ -254,31 +272,73 @@ BOOL FaceDatabase::AddFace(Mat& matImg, const string& strPersonName)
 
 BOOL FaceDatabase::AddFace(const CHAR *pszImgName, const string& strPersonName)
 {
-	Mat matImg = imread(pszImgName);
-	if (matImg.empty())
+	Mat mImg = imread(pszImgName);
+	if (mImg.empty())
 	{
 		cout << "AddFace() error：unable to read the picture, please confirm that the picture『" << pszImgName << "』 exists and the format is corrrect." << endl;
 
 		return FALSE;
 	}
 
-	return AddFace(matImg, strPersonName);
+	return AddFace(mImg, strPersonName);
+}
+
+//* 添加人脸，不同于上面两个函数，它使用DLIB提供的68个特征点模型提取脸部特征
+BOOL FaceDatabase::AddFace(Mat& mImgGray, Face& objFace, const string& strPersonName)
+{
+	if (mImgGray.empty())
+	{
+		cout << "error para in " << __FUNCTION__ << "(), in file " << __FILE__ << ", line " << __LINE__ - 3 << ", the parameter matImg is empty." << GetLastError() << endl;
+		return FALSE;
+	}
+
+	if (IsPersonAdded(strPersonName))
+	{
+		cout << strPersonName << " has been added to the face database." << endl;
+		return TRUE;
+	}
+
+	Mat mFaceChips;
+	__ExtractFaceFeatureChips(o_objShapePredictor, mImgGray, objFace, mFaceChips);
+	if (mFaceChips.empty())
+	{
+		cout << "No face was detected." << endl;
+		return FALSE;
+	}
+
+	//* ROI(region of interest)，按照一定算法将脸部区域转换为caffe网络特征提取需要的输入数据
+	Mat mFaceROI = FaceChipsHandle(mFaceChips);
+
+	//* 通过caffe网络提取图像特征
+	Mat mImgFeature(1, FACE_FEATURE_DIMENSION, CV_32F);
+	caffe2shell::ExtractFeature(o_pcaflNet, o_pflMemDataLayer, mFaceROI, mImgFeature, FACE_FEATURE_DIMENSION, FACE_FEATURE_LAYER_NAME);
+
+	//* 将特征数据存入文件
+	string strXMLFile = string(FACE_DB_PATH) + "/" + strPersonName + ".xml";
+	FileStorage fs(strXMLFile, FileStorage::WRITE);
+	fs << "VGG-FACEFEATURE" << mImgFeature;
+	fs.release();
+
+	//* 保存人数和人名字节数，用于人脸数据库加载
+	UpdateFaceDBStatisticFile(strPersonName);
+
+	return TRUE;
 }
 
 //* 将人脸数据从文件中取出并放入指定内存
 static BOOL __PutFaceDataFromFile(const string strFaceDataFile, FLOAT *pflFaceData)
 {
-	Mat matFaceFeatureData;
+	Mat mFaceFeatureData;
 
 	FileStorage fs;
 	if (fs.open(strFaceDataFile, FileStorage::READ))
 	{
-		fs["VGG-FACEFEATURE"] >> matFaceFeatureData;
+		fs["VGG-FACEFEATURE"] >> mFaceFeatureData;
 
 		fs.release();
 
 		for (INT i=0; i < FACE_FEATURE_DIMENSION; i++)
-			pflFaceData[i] = matFaceFeatureData.at<FLOAT>(0, i);
+			pflFaceData[i] = mFaceFeatureData.at<FLOAT>(0, i);
 
 		return TRUE;
 	}
@@ -303,19 +363,19 @@ void FaceDatabase::PutFaceToMemFile(void)
 	UINT unNameLen, unWriteBytes;
 	string strFileName;
 	unWriteBytes = 0;
-	nActualNumOfPerson = 0;
+	o_nActualNumOfPerson = 0;
 	while ((unNameLen = CLIBReadDir(hDir, strFileName)) > 0)
 	{
 		//* 写入特征数据
 		string strFaceDataFile = string(FACE_DB_PATH) + "/" + strFileName;
-		if (!__PutFaceDataFromFile(strFaceDataFile, ((FLOAT *)stMemFileFaceData.pvMem) + nActualNumOfPerson * FACE_FEATURE_DIMENSION))
+		if (!__PutFaceDataFromFile(strFaceDataFile, ((FLOAT *)o_stMemFileFaceData.pvMem) + o_nActualNumOfPerson * FACE_FEATURE_DIMENSION))
 			continue;		
-		nActualNumOfPerson++;
+		o_nActualNumOfPerson++;
 
 		//* 写入文件名
 		size_t sztEndPos = strFileName.rfind(".xml");		
 		string strPersonName = strFileName.substr(0, sztEndPos);
-		sprintf(((CHAR*)stMemFilePersonName.pvMem) + unWriteBytes, "%s", strPersonName.c_str());
+		sprintf(((CHAR*)o_stMemFilePersonName.pvMem) + unWriteBytes, "%s", strPersonName.c_str());
 		unWriteBytes += strPersonName.size() + 1;		
 	}
 
@@ -336,19 +396,19 @@ BOOL FaceDatabase::LoadFaceData(void)
 	}
 
 	//* 为人脸数据建立内存文件
-	if(!common_lib::CreateMemFile(&stMemFileFaceData, stInfo.nPersonNum * FACE_FEATURE_DIMENSION * sizeof(FLOAT)))
+	if(!common_lib::CreateMemFile(&o_stMemFileFaceData, stInfo.nPersonNum * FACE_FEATURE_DIMENSION * sizeof(FLOAT)))
 	{ 
 		return FALSE;
 	}
 
 	//* 为人名建立内存文件
-	if (!common_lib::CreateMemFile(&stMemFilePersonName, stInfo.nTotalLenOfPersonName))
+	if (!common_lib::CreateMemFile(&o_stMemFilePersonName, stInfo.nTotalLenOfPersonName))
 	{
-		common_lib::DeletMemFile(&stMemFileFaceData);
+		common_lib::DeletMemFile(&o_stMemFileFaceData);
 
 		return FALSE;
 	}
-	memset((CHAR*)stMemFilePersonName.pvMem, 0, stInfo.nTotalLenOfPersonName);
+	memset((CHAR*)o_stMemFilePersonName.pvMem, 0, stInfo.nTotalLenOfPersonName);
 
 	//* 将人脸数据放入内存文件
 	PutFaceToMemFile();
@@ -368,23 +428,40 @@ BOOL FaceDatabase::LoadFaceData(void)
 	return TRUE;
 }
 
+BOOL FaceDatabase::LoadDLIB68FaceLandmarksModel(const CHAR *pszModelFileName)
+{
+	try {
+		dlib::deserialize(pszModelFileName) >> o_objShapePredictor;
+		o_blIsLoadDLIB68FaceLandmarksModel = TRUE;
+		return TRUE;
+	}
+	catch (runtime_error& e) {		
+		cerr << e.what() << endl;
+		return FALSE;
+	}
+	catch (exception& e) {
+		cerr << e.what() << endl;
+		return FALSE;
+	}
+}
+
 //* 完成实际的预测
-static DOUBLE __Predict(FaceDatabase *pface_db, Mat& matFaceChips, string& strPersonName, 
+static DOUBLE __Predict(FaceDatabase *pobjFaceDB, Mat& matFaceChips, string& strPersonName, 
 							FLOAT flConfidenceThreshold, FLOAT flStopPredictThreshold)
 {
 	//* ROI(region of interest)，按照一定算法(比如gamma校正、滤波、归一化等处理)将脸部区域转换为caffe网络特征提取需要的输入数据
-	Mat matFaceROI = pface_db->FaceChipsHandle(matFaceChips);
+	Mat matFaceROI = pobjFaceDB->FaceChipsHandle(matFaceChips);
 
 	//* 通过caffe网络提取图像特征
 	FLOAT flaFaceFeature[FACE_FEATURE_DIMENSION];
-	caffe2shell::ExtractFeature(pface_db->pcaflNet, pface_db->pflMemDataLayer, matFaceROI, flaFaceFeature, FACE_FEATURE_DIMENSION, FACE_FEATURE_LAYER_NAME);
+	caffe2shell::ExtractFeature(pobjFaceDB->o_pcaflNet, pobjFaceDB->o_pflMemDataLayer, matFaceROI, flaFaceFeature, FACE_FEATURE_DIMENSION, FACE_FEATURE_LAYER_NAME);
 
 	//* 查找匹配的脸部特征
-	const CHAR *pszPerson = (const CHAR *)pface_db->stMemFilePersonName.pvMem;
-	const FLOAT *pflaData = (FLOAT*)pface_db->stMemFileFaceData.pvMem;
+	const CHAR *pszPerson = (const CHAR *)pobjFaceDB->o_stMemFilePersonName.pvMem;
+	const FLOAT *pflaData = (FLOAT*)pobjFaceDB->o_stMemFileFaceData.pvMem;
 	DOUBLE dblMaxSimilarity = flConfidenceThreshold, dblSimilarity;
 	const CHAR *pszMatchPersonName = NULL;
-	for (INT i = 0; i < pface_db->nActualNumOfPerson; i++)
+	for (INT i = 0; i < pobjFaceDB->o_nActualNumOfPerson; i++)
 	{
 		dblSimilarity = malib::CosineSimilarity(pflaData + i * FACE_FEATURE_DIMENSION, flaFaceFeature, FACE_FEATURE_DIMENSION);
 		if (dblSimilarity > dblMaxSimilarity)
@@ -417,17 +494,17 @@ static DOUBLE __Predict(FaceDatabase *pface_db, Mat& matFaceChips, string& strPe
 //* 返回相似度，参数strPersonName接收找到的人名，flConfidenceThreshold指定最低可信度值，低于这个值就认为不是这个人
 //* flStopPredictThreshold指定停止查找的阈值，因为函数会检索整个数据库以找到最大相似度的人脸，有了这个值函数只要找到大于这个
 //* 值的人脸就停止查找了，这样可有效提升效率
-DOUBLE FaceDatabase::Predict(Mat& matImg, string& strPersonName, FLOAT flConfidenceThreshold, FLOAT flStopPredictThreshold)
+DOUBLE FaceDatabase::Predict(Mat& mImg, string& strPersonName, FLOAT flConfidenceThreshold, FLOAT flStopPredictThreshold)
 {
-	if (matImg.empty())
+	if (mImg.empty())
 	{
 		cout << "error para in " << __FUNCTION__ << "(), in file " << __FILE__ << ", line " << __LINE__ - 3 << ", the parameter matImg is empty." << GetLastError() << endl;
 		return 0;
 	}
 
 	//* 从图片中提取脸部区域
-	Mat matFaceChips = ExtractFaceChips(matImg);
-	if (matFaceChips.empty())
+	Mat mFaceChips = ExtractFaceChips(mImg);
+	if (mFaceChips.empty())
 	{
 		//cout << "No face was detected." << endl;
 		return 0;
@@ -436,34 +513,53 @@ DOUBLE FaceDatabase::Predict(Mat& matImg, string& strPersonName, FLOAT flConfide
 	//imshow("pic", matFaceChips);
 	//cv::waitKey(60);
 
-	return __Predict(this, matFaceChips, strPersonName, flConfidenceThreshold, flStopPredictThreshold);
+	return __Predict(this, mFaceChips, strPersonName, flConfidenceThreshold, flStopPredictThreshold);
 }
 
 DOUBLE FaceDatabase::Predict(const CHAR *pszImgName, string& strPersonName, FLOAT flConfidenceThreshold, FLOAT flStopPredictThreshold)
 {
-	Mat matImg = imread(pszImgName);
-	if (matImg.empty())
+	Mat mImg = imread(pszImgName);
+	if (mImg.empty())
 	{
 		cout << "Predict() error：unable to read the picture, please confirm that the picture『" << pszImgName << "』 exists and the format is corrrect." << endl;
 
 		return 0;
 	}
 
-	return Predict(matImg, strPersonName, flConfidenceThreshold);
+	return Predict(mImg, strPersonName, flConfidenceThreshold);
+}
+
+//* 使用DLIB提供68个特征点模型提取脸部特征
+DOUBLE FaceDatabase::Predict(Mat& mImgGray, Face& objFace, string& strPersonName, FLOAT flConfidenceThreshold, FLOAT flStopPredictThreshold)
+{
+	if (mImgGray.empty())
+	{
+		cout << "error para in " << __FUNCTION__ << "(), in file " << __FILE__ << ", line " << __LINE__ - 3 << ", the parameter matImgGray is empty." << GetLastError() << endl;
+		return 0;
+	}
+
+	Mat mFaceChips;
+	__ExtractFaceFeatureChips(o_objShapePredictor, mImgGray, objFace, mFaceChips);
+
+	DOUBLE dblConfidence = 0;
+	if (!mFaceChips.empty())
+		dblConfidence = __Predict(this, mFaceChips, strPersonName, flConfidenceThreshold, flStopPredictThreshold);
+
+	return dblConfidence;
 }
 
 //* 视频预测模块
-vector<ST_PERSON> FaceDatabase::VideoPredict::Predict(Mat& matVideoImg, FLOAT flConfidenceThreshold, FLOAT flStopPredictThreshold)
+vector<ST_PERSON> FaceDatabase::VideoPredict::Predict(Mat& mVideoImg, FLOAT flConfidenceThreshold, FLOAT flStopPredictThreshold)
 {
 	vector<ST_PERSON> vPersons;
 
-	Mat matGray;
-	cvtColor(matVideoImg, matGray, CV_BGR2GRAY);
+	Mat mGray;
+	cvtColor(mVideoImg, mGray, CV_BGR2GRAY);
 
 	//* 带特征点检测，这个函数要比DLib的特征点检测函数稍微快一些
 	INT nLandmark = 1;
-	INT *pnFaces = facedetect_multiview_reinforce(pubFeaceDetectResultBuf, (UCHAR*)(matGray.ptr(0)), matGray.cols, matGray.rows, (INT)matGray.step,
-													flScale, nMinNeighbors, nMinPossibleFaceSize, 0, nLandmark);
+	INT *pnFaces = facedetect_multiview_reinforce(o_pubFeaceDetectResultBuf, (UCHAR*)(mGray.ptr(0)), mGray.cols, mGray.rows, (INT)mGray.step,
+													o_flScale, o_nMinNeighbors, o_nMinPossibleFaceSize, 0, nLandmark);
 	if (!pnFaces)
 		return vPersons;
 
@@ -480,10 +576,10 @@ vector<ST_PERSON> FaceDatabase::VideoPredict::Predict(Mat& matVideoImg, FLOAT fl
 		//* 矩形框出人脸
 		Point left(x, y);
 		Point right(x + nWidth, y + nHeight);
-		rectangle(matVideoImg, left, right, Scalar(0, 255, 0), 1);	
+		rectangle(mVideoImg, left, right, Scalar(0, 255, 0), 1);	
 		
-		Mat matFaceChips;
-		__ExtractFaceFeatureChips(matGray, psScalar, matFaceChips);			
+		Mat mFaceChips;
+		__ExtractFaceFeatureChips(mGray, psScalar, mFaceChips);			
 
 		//* 预测并标记
 		INT nBaseLine = 0;
@@ -491,7 +587,7 @@ vector<ST_PERSON> FaceDatabase::VideoPredict::Predict(Mat& matVideoImg, FLOAT fl
 		string strConfidenceLabel;
 		Rect rect;		
 		ST_PERSON stPerson;		
-		stPerson.dblConfidence = __Predict(pface_db, matFaceChips, stPerson.strPersonName, flConfidenceThreshold, flStopPredictThreshold);
+		stPerson.dblConfidence = __Predict(o_pobjFaceDB, mFaceChips, stPerson.strPersonName, flConfidenceThreshold, flStopPredictThreshold);
 		if (stPerson.dblConfidence > flConfidenceThreshold)
 		{
 			vPersons.push_back(stPerson);
@@ -505,9 +601,9 @@ vector<ST_PERSON> FaceDatabase::VideoPredict::Predict(Mat& matVideoImg, FLOAT fl
 			rect = Rect(Point(x, y - (personLabelSize.height + confidenceLabelSize.height + 3)), 
 							Size(personLabelSize.width > confidenceLabelSize.width ? personLabelSize.width : confidenceLabelSize.width, 
 								personLabelSize.height + confidenceLabelSize.height + nBaseLine + 3));
-			rectangle(matVideoImg, rect, Scalar(255, 255, 255), CV_FILLED);
-			putText(matVideoImg, strPersonLabel, Point(x, y - confidenceLabelSize.height - 3), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(107, 194, 53));
-			putText(matVideoImg, strConfidenceLabel, Point(x, y), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(107, 194, 53));
+			rectangle(mVideoImg, rect, Scalar(255, 255, 255), CV_FILLED);
+			putText(mVideoImg, strPersonLabel, Point(x, y - confidenceLabelSize.height - 3), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(107, 194, 53));
+			putText(mVideoImg, strConfidenceLabel, Point(x, y), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(107, 194, 53));
 		}
 		else
 		{
@@ -516,11 +612,25 @@ vector<ST_PERSON> FaceDatabase::VideoPredict::Predict(Mat& matVideoImg, FLOAT fl
 			Size personLabelSize = getTextSize(strPersonLabel, FONT_HERSHEY_SIMPLEX, 0.5, 1, &nBaseLine);
 			rect = Rect(Point(x, y - personLabelSize.height), Size(personLabelSize.width, personLabelSize.height + nBaseLine));
 
-			rectangle(matVideoImg, rect, Scalar(255, 255, 255), CV_FILLED);
-			putText(matVideoImg, strPersonLabel, Point(x, y), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(107, 194, 53));
+			rectangle(mVideoImg, rect, Scalar(255, 255, 255), CV_FILLED);
+			putText(mVideoImg, strPersonLabel, Point(x, y), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(107, 194, 53));
 		}
 	}
 
 	return vPersons;
+}
+
+//* 视频预测模块，该函数需要上层调用函数将检测到的脸部数据传递给它，设计该函数的目的是让用户选择快速的脸部检测函数，上面同名函数使用的检测函数很耗时
+DOUBLE FaceDatabase::VideoPredict::Predict(Mat& mVideoImgGray, Face& objFace, dlib::shape_predictor& objShapePredictor,
+											string& strPersonName, FLOAT flConfidenceThreshold, FLOAT flStopPredictThreshold)
+{
+	Mat mFaceChips;
+	__ExtractFaceFeatureChips(objShapePredictor, mVideoImgGray, objFace, mFaceChips);
+
+	DOUBLE dblConfidence = 0;
+	if (!mFaceChips.empty())
+		dblConfidence = __Predict(o_pobjFaceDB, mFaceChips, strPersonName, flConfidenceThreshold, flStopPredictThreshold);
+
+	return dblConfidence;
 }
 

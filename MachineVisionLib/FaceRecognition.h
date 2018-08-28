@@ -6,6 +6,8 @@
 #endif
 
 #include "caffe/caffe.hpp"
+#include <dlib/opencv.h>
+#include <dlib/image_processing.h>
 
 namespace caffe
 {
@@ -46,28 +48,26 @@ typedef struct _ST_FACE_DB_STATIS_INFO_ {
 //* 人脸数据库类
 class FACERECOGNITION FaceDatabase {
 public:
-	FaceDatabase() {
+	FaceDatabase() : o_blIsLoadDLIB68FaceLandmarksModel(FALSE), o_pobjVideoPredict(NULL) {
 #if NEED_GPU
 		caffe::Caffe::set_mode(caffe::Caffe::GPU);
 #else
 		caffe::Caffe::set_mode(caffe::Caffe::CPU);
 #endif		
 
-		stMemFileFaceData.pvMem = NULL;
-		stMemFileFaceData.hMem = INVALID_HANDLE_VALUE;
+		o_stMemFileFaceData.pvMem = NULL;
+		o_stMemFileFaceData.hMem = INVALID_HANDLE_VALUE;
 
-		stMemFilePersonName.pvMem = NULL;
-		stMemFilePersonName.hMem = INVALID_HANDLE_VALUE;
-
-		pvideo_predict = NULL;
-	}
+		o_stMemFilePersonName.pvMem = NULL;
+		o_stMemFilePersonName.hMem = INVALID_HANDLE_VALUE;			
+	}	
 
 	~FaceDatabase() {	
-		common_lib::DeletMemFile(&stMemFileFaceData);
-		common_lib::DeletMemFile(&stMemFilePersonName);
+		common_lib::DeletMemFile(&o_stMemFileFaceData);
+		common_lib::DeletMemFile(&o_stMemFilePersonName);
 
-		if (pvideo_predict)
-			delete pvideo_predict;
+		if (o_pobjVideoPredict)
+			delete o_pobjVideoPredict;
 	}
 
 	BOOL LoadCaffeVGGNet(string strCaffePrototxtFile, string strCaffeModelFile);
@@ -75,62 +75,75 @@ public:
 	BOOL IsPersonAdded(const string& strPersonName);
 	BOOL AddFace(const CHAR *pszImgName, const string& strPersonName);
 	BOOL AddFace(Mat& matImg, const string& strPersonName);
+	BOOL AddFace(Mat& mImgGray, Face& objFace, const string& strPersonName);
 
 	void GetFaceDBStatisInfo(PST_FACE_DB_STATIS_INFO pstInfo);
 	BOOL LoadFaceData(void);
+
+	BOOL LoadDLIB68FaceLandmarksModel(const CHAR *pszModelFileName);
 
 	Mat FaceChipsHandle(Mat& matFaceChips, DOUBLE dblPowerValue = 0.1, DOUBLE dblGamma = 0.8, DOUBLE dblNorm = 10);
 
 	DOUBLE Predict(Mat& matImg, string& strPersonName, FLOAT flConfidenceThreshold = 0.55, FLOAT flStopPredictThreshold = 0.95);
 	DOUBLE Predict(const CHAR *pszImgName, string& strPersonName, FLOAT flConfidenceThreshold = 0.55, FLOAT flStopPredictThreshold = 0.95);
+	DOUBLE Predict(Mat& mImgGray, Face& objFace, string& strPersonName, FLOAT flConfidenceThreshold = 0.55, FLOAT flStopPredictThreshold = 0.95);
 
 	class FACERECOGNITION VideoPredict {
 	public:
-		VideoPredict(FaceDatabase *pinput_face_db, FLOAT flInputScale = 1.05f, INT nInputMinNeighbors = 5, INT nInputMinPossibleFaceSize = 16) {
-			pubFeaceDetectResultBuf = (UCHAR*)malloc(LIBFACEDETECT_BUFFER_SIZE);
-			if (!pubFeaceDetectResultBuf)
+		VideoPredict(FaceDatabase *pobjFceDB, BOOL blIsUsedLIBFACE = FALSE, FLOAT flScale = 1.05f, INT nMinNeighbors = 5, INT nMinPossibleFaceSize = 16) {
+			if (blIsUsedLIBFACE)
 			{
-				perror(NULL);
-				cout << "error para in " << __FUNCTION__ << "(), in file " << __FILE__ << ", line " << __LINE__ - 4 << ", malloc error code:" << GetLastError() << endl;
+				o_pubFeaceDetectResultBuf = (UCHAR*)malloc(LIBFACEDETECT_BUFFER_SIZE);
+				if (!o_pubFeaceDetectResultBuf)
+				{
+					perror(NULL);
+					cout << "error para in " << __FUNCTION__ << "(), in file " << __FILE__ << ", line " << __LINE__ - 4 << ", malloc error code:" << GetLastError() << endl;
 
-				exit(-1);
+					exit(-1);
+				}
 			}
+			else
+				o_pubFeaceDetectResultBuf = NULL;
 
-			flScale = flInputScale;
-			nMinNeighbors = nInputMinNeighbors;
-			nMinPossibleFaceSize = nInputMinPossibleFaceSize;
+			o_flScale = flScale;
+			o_nMinNeighbors = nMinNeighbors;
+			o_nMinPossibleFaceSize = nMinPossibleFaceSize;
 
-			pface_db = pinput_face_db;
+			o_pobjFaceDB = pobjFceDB;
 		}
 
 		~VideoPredict() {
-			if (pubFeaceDetectResultBuf)
-				free(pubFeaceDetectResultBuf);
+			if (o_pubFeaceDetectResultBuf)
+				std::free(o_pubFeaceDetectResultBuf);
 
 			cout << "The memory allocated for the libfacedetecion library has been released." << endl;
 		}
 
-		vector<ST_PERSON> Predict(Mat& matVideoImg, FLOAT flConfidenceThreshold = 0.80, FLOAT flStopPredictThreshold = 0.95);
+		vector<ST_PERSON> Predict(Mat& mVideoImg, FLOAT flConfidenceThreshold = 0.80, FLOAT flStopPredictThreshold = 0.95);
+		DOUBLE Predict(Mat& mVideoImgGray, Face& objFace, dlib::shape_predictor& objShapePredictor, string& strPersonName, FLOAT flConfidenceThreshold = 0.80, FLOAT flStopPredictThreshold = 0.95);
 
 	private:
-		UCHAR *pubFeaceDetectResultBuf;
-		FLOAT flScale;
-		INT nMinNeighbors;
-		INT nMinPossibleFaceSize;
-		FaceDatabase *pface_db;
-	} *pvideo_predict;
+		UCHAR *o_pubFeaceDetectResultBuf;
+		FLOAT o_flScale;
+		INT o_nMinNeighbors;
+		INT o_nMinPossibleFaceSize;
+		FaceDatabase *o_pobjFaceDB;
+	} *o_pobjVideoPredict;
 
-	caffe::Net<FLOAT> *pcaflNet;
-	caffe::MemoryDataLayer<FLOAT> *pflMemDataLayer;
+	caffe::Net<FLOAT> *o_pcaflNet;
+	caffe::MemoryDataLayer<FLOAT> *o_pflMemDataLayer;
 
-	ST_MEM_FILE stMemFileFaceData;
-	ST_MEM_FILE stMemFilePersonName;
-	INT nActualNumOfPerson;
+	ST_MEM_FILE o_stMemFileFaceData;
+	ST_MEM_FILE o_stMemFilePersonName;
+	INT o_nActualNumOfPerson;
+
+	dlib::shape_predictor o_objShapePredictor;
+	BOOL o_blIsLoadDLIB68FaceLandmarksModel;
 
 private:
 	//* 提取脸部图像，注意只能提取一张脸部图像
 	Mat ExtractFaceChips(Mat& matImg, FLOAT flScale = 1.05f, INT nMinNeighbors = 5, INT nMinPossibleFaceSize = 16);
-	Mat ExtractFaceChips(const CHAR *pszImgName, FLOAT flScale = 1.05f, INT nMinNeighbors = 5, INT nMinPossibleFaceSize = 16);	
+	Mat ExtractFaceChips(const CHAR *pszImgName, FLOAT flScale = 1.05f, INT nMinNeighbors = 5, INT nMinPossibleFaceSize = 16);
 	void UpdateFaceDBStatisticFile(const string& strPersonName);
 	void PutFaceToMemFile(void);
 };
