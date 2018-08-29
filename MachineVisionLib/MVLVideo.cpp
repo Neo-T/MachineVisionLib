@@ -101,8 +101,11 @@ void VLCVideoPlayer::OpenVideoFromFile(const CHAR *pszFile, PFCB_DISPLAY_PREPROC
 	libvlc_video_set_callbacks(o_pstVLCMediaPlayer, FCBLock, FCBUnlock, FCBDisplay, this);								//* 设定回调函数
 	libvlc_video_set_format(o_pstVLCMediaPlayer, "RV24", o_unAdjustedWidth, o_unAdjustedHeight, o_unAdjustedWidth * 3);	//* 设定播放格式	
 
-	o_strDisplayWinName = pszDisplayWinName;
-	o_pfcbDispPreprocessor = pfcbDispPreprocessor;
+	if (pfcbDispPreprocessor)
+	{
+		o_strDisplayWinName = pszDisplayWinName;
+		o_pfcbDispPreprocessor = pfcbDispPreprocessor;
+	}
 }
 
 //* 打开一个网络RTSP串流
@@ -153,8 +156,11 @@ void VLCVideoPlayer::OpenVideoFromeRtsp(const CHAR *pszURL, PFCB_DISPLAY_PREPROC
 	libvlc_video_set_callbacks(o_pstVLCMediaPlayer, FCBLock, FCBUnlock, FCBDisplay, this);								//* 设定回调函数
 	libvlc_video_set_format(o_pstVLCMediaPlayer, "RV24", o_unAdjustedWidth, o_unAdjustedHeight, o_unAdjustedWidth * 3);	//* 设定播放格式
 
-	o_strDisplayWinName = pszDisplayWinName;
-	o_pfcbDispPreprocessor = pfcbDispPreprocessor;
+	if (pfcbDispPreprocessor)
+	{
+		o_strDisplayWinName = pszDisplayWinName;
+		o_pfcbDispPreprocessor = pfcbDispPreprocessor;
+	}	
 }
 
 //* 设置显示预处理函数的输入参数

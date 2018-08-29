@@ -125,33 +125,80 @@ static void __VideoPredict(DType dtVideoSrc, BOOL blIsNeedToReplay)
 	cv2shell::CV2ShowVideo(dtVideoSrc, __PredictThroughVideoData, (DWORD64)&objFaceDB, blIsNeedToReplay);
 }
 
-//* 将从网络摄像机检测到的人脸保存起来
-static BOOL __MVLVideoSaveFace(Mat& mFace, UINT unFaceID)
+//* 从MVL播放器播放的视频中找到人脸
+static Mat __MVLVideoFindFace(Net& objDNNNet, Mat& mFrame, Face& objFace)
 {
-	ostringstream oss;
-	oss << "FaceID: " << unFaceID;
-	string strWinName(oss.str());
+	//* 按照预测模型要求截取一块等边的矩形区域
+	Mat mROI;
+	if (mFrame.cols > mFrame.rows)
+		mROI = mFrame(Rect((mFrame.cols - mFrame.rows) / 2, 0, mFrame.rows, mFrame.rows));
+	else if (mFrame.cols < mFrame.rows)
+		mROI = mFrame(Rect(0, (mFrame.rows - mFrame.cols) / 2, mFrame.cols, mFrame.cols));
+	else
+		mROI = mFrame;
 
-	imshow(strWinName, mFace);
+	//* 检测人脸
+	Mat &matFaces = cv2shell::FaceDetect(objDNNNet, mROI);
+	if (matFaces.empty())
+		return mROI;
 
-	CHAR bKey = waitKey(1000);
+	//* 虽然是循环，但依然是只取第一张有效的脸
+	FLOAT flConfidenceVal;
+	for (INT i = 0; i < matFaces.rows; i++)
+	{ 
+		flConfidenceVal = matFaces.at<FLOAT>(i, 2);
+		if (flConfidenceVal < FACE_DETECT_MIN_CONFIDENCE_THRESHOLD)
+			continue;
 
-	//* 等于回车，则保存之
-	if (bKey == 13)
-	{
-		oss.str("");
-		oss << "Face-" << unFaceID << ".jpg";
-		cout << oss.str() << endl;
-		imwrite(oss.str(), mFace);
-		destroyWindow(strWinName);
-		return TRUE;
+		objFace.o_nLeftTopX = static_cast<INT>(matFaces.at<FLOAT>(i, 3) * mROI.cols);
+		objFace.o_nLeftTopY = static_cast<INT>(matFaces.at<FLOAT>(i, 4) * mROI.rows);
+		objFace.o_nRightBottomX = static_cast<INT>(matFaces.at<FLOAT>(i, 5) * mROI.cols);
+		objFace.o_nRightBottomY = static_cast<INT>(matFaces.at<FLOAT>(i, 6) * mROI.rows);
+		objFace.o_flConfidenceVal = flConfidenceVal;
+		
+		break;
 	}
 
-	return FALSE;
+	return mROI;
 }
 
-//* MVL播放器显示预处理函数
-static void __MVLVideoDispPreprocessor(Mat& mVideoFrame, void *pvParam, UINT unCurFrameIdx)
+//* 将__MVLVideoFindFace()函数找到的人脸添加到人脸库
+static void __MVLAddFace(Mat& mROI, Face& objFace, FaceDatabase& objFaceDB)
+{
+	static UINT unFaceID = 0;
+
+	ostringstream oss, oss_name;
+	oss << "Face-" << unFaceID << ".jpg";
+	oss_name << "Face-" << unFaceID;
+
+	Mat mFace = mROI(Rect(objFace.o_nLeftTopX, objFace.o_nLeftTopY, objFace.o_nRightBottomX - objFace.o_nLeftTopX, objFace.o_nRightBottomY - objFace.o_nLeftTopY));
+	imshow(oss.str(), mFace);
+
+	if (13 == waitKey(0))	//* 继续回车则添加之，否则取消
+	{
+		imwrite(oss.str(), mFace);
+
+		if (objFaceDB.IsPersonAdded(oss_name.str()))
+			cout << oss_name.str() << " has been added to the face database." << endl;
+		else
+		{
+			Mat mFaceGray;
+			cvtColor(mROI, mFaceGray, CV_BGR2GRAY);
+
+			if (objFaceDB.AddFace(mFaceGray, objFace, oss_name.str()))
+				cout << oss_name.str() << " was successfully added to the face database." << endl;
+			else
+				cout << oss_name.str() << " was not added to the face database. " << endl;
+		}
+
+		unFaceID++;
+	}
+
+	destroyWindow(oss.str());
+}
+
+//* MVL播放器之回调函数：人脸识别模块
+static void __MVLFacePredict(Mat& mVideoFrame, void *pvParam, UINT unCurFrameIdx)
 {	
 	//* 按照预训练模型的Size，输入图像必须是300 x 300，大部分图像基本是16：9或4：3，很少等比例的，为了避免图像变形，我们只好截取图像中间最大面积的正方形区域识别人脸
 	Mat mROI;
@@ -188,8 +235,8 @@ static void __MVLVideoDispPreprocessor(Mat& mVideoFrame, void *pvParam, UINT unC
 		if (dblConfidence > 0.8f)
 		{
 			//* 画出矩形
-			Rect rectObj(nCurLTX, nCurLTY, nCurRBX - nCurLTX, nCurRBY - nCurLTY);
-			rectangle(mROI, rectObj, Scalar(0, 255, 0));
+			Rect objRect(nCurLTX, nCurLTY, nCurRBX - nCurLTX, nCurRBY - nCurLTY);
+			rectangle(mROI, objRect, Scalar(0, 255, 0));
 
 			INT nBaseLine = 0;
 			String strPersonLabel;
@@ -216,38 +263,46 @@ static void __MVLVideoDispPreprocessor(Mat& mVideoFrame, void *pvParam, UINT unC
 static void __MVLVideoFaceHandler(const CHAR *pszURL, BOOL blIsCatchFace, BOOL blIsRTSPStream)
 {
 	FaceDatabase objFaceDB;
-	if (!blIsCatchFace)	//* 预测，则加载预测网络
+	
+	if (!blIsCatchFace)
 	{
-		if (!objFaceDB.LoadDLIB68FaceLandmarksModel("C:\\OpenCV3.4\\dlib-19.10\\models\\shape_predictor_68_face_landmarks.dat"))
-			return;
-
 		if (!objFaceDB.LoadFaceData())
 		{
 			cout << "Load face data failed, the process will be exited!" << endl;
 			return;
 		}
-
-		if (!objFaceDB.LoadCaffeVGGNet("C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE_extract_deploy.prototxt",
-			"C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE.caffemodel"))
-		{
-			cout << "Load Failed, the process will be exited!" << endl;
-			return;
-		}
-
-		objFaceDB.o_pobjVideoPredict = new FaceDatabase::VideoPredict(&objFaceDB);
 	}
 
+	if (!objFaceDB.LoadDLIB68FaceLandmarksModel("C:\\OpenCV3.4\\dlib-19.10\\models\\shape_predictor_68_face_landmarks.dat"))
+		return;
+
+	if (!objFaceDB.LoadCaffeVGGNet("C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE_extract_deploy.prototxt",
+		"C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE.caffemodel"))
+	{
+		cout << "Load Failed, the process will be exited!" << endl;
+		return;
+	}
+
+	objFaceDB.o_pobjVideoPredict = new FaceDatabase::VideoPredict(&objFaceDB);
+
+	//* 声明一个VLC播放器
 	VLCVideoPlayer objVideoPlayer;
 
 	cvNamedWindow(pszURL, CV_WINDOW_AUTOSIZE);
 
 	if (blIsRTSPStream)
 	{
-		objVideoPlayer.OpenVideoFromeRtsp(pszURL, __MVLVideoDispPreprocessor, pszURL, 1000);
+		if(!blIsCatchFace)
+			objVideoPlayer.OpenVideoFromeRtsp(pszURL, __MVLFacePredict, pszURL, 1000);
+		else
+			objVideoPlayer.OpenVideoFromeRtsp(pszURL, NULL, NULL, 500);
 	}
 	else
 	{
-		objVideoPlayer.OpenVideoFromFile(pszURL, __MVLVideoDispPreprocessor, pszURL);
+		if(!blIsCatchFace)
+			objVideoPlayer.OpenVideoFromFile(pszURL, __MVLFacePredict, pszURL);
+		else
+			objVideoPlayer.OpenVideoFromFile(pszURL, NULL, NULL);
 	}
 
 	if (!objVideoPlayer.start())
@@ -257,13 +312,16 @@ static void __MVLVideoFaceHandler(const CHAR *pszURL, BOOL blIsCatchFace, BOOL b
 	}
 
 	//* 初始化DNN人脸检测网络
-	Net dnnNet = cv2shell::InitFaceDetectDNNet();
+	Net objDNNNet = cv2shell::InitFaceDetectDNNet();
 
-	//* 设置播放器显示预处理函数的入口参数
-	ST_VLCPLAYER_FCBDISPPREPROC_PARAM stFCBDispPreprocParam;
-	stFCBDispPreprocParam.pobjDNNNet = &dnnNet;
-	stFCBDispPreprocParam.pobjFaceDB = &objFaceDB;
-	objVideoPlayer.SetDispPreprocessorInputParam(&stFCBDispPreprocParam);
+	if (!blIsCatchFace)
+	{
+		//* 设置播放器显示预处理函数的入口参数
+		ST_VLCPLAYER_FCBDISPPREPROC_PARAM stFCBDispPreprocParam;
+		stFCBDispPreprocParam.pobjDNNNet = &objDNNNet;
+		stFCBDispPreprocParam.pobjFaceDB = &objFaceDB;
+		objVideoPlayer.SetDispPreprocessorInputParam(&stFCBDispPreprocParam);
+	}
 	
 	CHAR bKey;
 	BOOL blIsPaused = FALSE;
@@ -288,11 +346,33 @@ static void __MVLVideoFaceHandler(const CHAR *pszURL, BOOL blIsCatchFace, BOOL b
 			break;
 		}	
 
-		//Mat mSrcFrame = objVideoPlayer.GetNextFrame();
-		//if (mSrcFrame.empty())
-		//	continue;
+		if (blIsCatchFace)
+		{
+			Mat mSrcFrame = objVideoPlayer.GetNextFrame();
+			if (mSrcFrame.empty())
+				continue;
 
-		//Mat mFrame = mSrcFrame.clone();
+			Mat mFrame = mSrcFrame.clone();
+
+			Face objFace;
+			objFace.o_flConfidenceVal = 0.0f;
+			Mat mROI = __MVLVideoFindFace(objDNNNet, mFrame, objFace);
+			if (objFace.o_flConfidenceVal > 0.0f)
+			{
+				//* 回车添加人脸
+				if (bKey == 13)				
+					__MVLAddFace(mROI, objFace, objFaceDB);				
+
+				//* 标记人脸
+				if (objFace.o_flConfidenceVal > FACE_DETECT_MIN_CONFIDENCE_THRESHOLD)
+				{
+					Rect objRect(objFace.o_nLeftTopX, objFace.o_nLeftTopY, objFace.o_nRightBottomX - objFace.o_nLeftTopX, objFace.o_nRightBottomY - objFace.o_nLeftTopY);
+					rectangle(mROI, objRect, Scalar(0, 255, 0));
+				}
+			}
+
+			imshow(pszURL, mFrame);
+		}		
 	}
 
 
@@ -311,9 +391,9 @@ int _tmain(int argc, _TCHAR* argv[])
 		cout << argv[0] << " predict [Img Path]" << endl;
 		cout << argv[0] << " video [camera number, If not specified, the default value is 0]" << endl;
 		cout << argv[0] << " video [video file path]" << endl;
-		cout << argv[0] << " mvlvideo_rtsp_predict [rtsp url] - 使用MVLVideo模块读取RTSP流来识别人脸" << endl;
-		cout << argv[0] << " mvlvideo_predict [video file path] - 使用MVLVideo模块读取视频文件识别人脸" << endl;
-		cout << argv[0] << " mvlvideo_catchface [rtsp url] - 使用MVLVideo模块读取RTSP流检测并保存人脸" << endl;
+		cout << argv[0] << " mvlvideo_rtsp_predict [rtsp url] - Use the MVLVideo module to read the RTSP flow to identify faces" << endl;
+		cout << argv[0] << " mvlvideo_predict [video file path] - Use the MVLVideo module to read the video file to identify faces." << endl;
+		cout << argv[0] << " mvlvideo_catchface [rtsp url] - Using MVLVideo module to read RTSP flow registration face" << endl;
 
 		return -1;
 	}
@@ -385,9 +465,9 @@ __lblUsage:
 	cout << argv[0] << " predict [Img Path]" << endl;
 	cout << argv[0] << " video [camera number, If not specified, the default value is 0]" << endl;
 	cout << argv[0] << " video [video file path]" << endl;
-	cout << argv[0] << " mvlvideo_rtsp_predict [rtsp url] - 使用MVLVideo模块读取RTSP流来识别人脸" << endl;
-	cout << argv[0] << " mvlvideo_predict [video file path] - 使用MVLVideo模块读取视频文件识别人脸" << endl;
-	cout << argv[0] << " mvlvideo_catchface [rtsp url] - 使用MVLVideo模块读取RTSP流检测并保存人脸" << endl;
+	cout << argv[0] << " mvlvideo_rtsp_predict [rtsp url] - Use the MVLVideo module to read the RTSP flow to identify faces." << endl;
+	cout << argv[0] << " mvlvideo_predict [video file path] - Use the MVLVideo module to read the video file to identify faces." << endl;
+	cout << argv[0] << " mvlvideo_catchface [rtsp url] - Using MVLVideo module to read RTSP flow registration face." << endl;
 
     return 0;
 }

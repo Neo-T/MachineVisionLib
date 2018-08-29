@@ -26,7 +26,8 @@ public:
 					   o_pstVLCInstance(NULL), 
 					   o_pstVLCMediaPlayer(NULL), 
 					   o_unNextFrameIdx(0), 
-					   o_unPrevFrameIdx(0)
+					   o_unPrevFrameIdx(0), 
+					   o_pfcbDispPreprocessor(NULL)
 	{
 	};
 
@@ -34,7 +35,8 @@ public:
 	VLCVideoPlayer(UINT unAdjustedWidth) : o_pstVLCInstance(NULL),
 										   o_pstVLCMediaPlayer(NULL), 
 										   o_unNextFrameIdx(0), 
-										   o_unPrevFrameIdx(0)
+										   o_unPrevFrameIdx(0), 
+										   o_pfcbDispPreprocessor(NULL)
 	{
 		o_unAdjustedWidth = unAdjustedWidth;		
 	};
