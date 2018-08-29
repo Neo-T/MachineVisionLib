@@ -46,7 +46,7 @@ void cv2shell::CV2ShowVideo(DType dtVideoSrc, BOOL blIsNeedToReplay)
 	VideoCapture video;
 	BOOL blIsNotOpen = TRUE;
 
-	while (true)
+	while (TRUE)
 	{
 		if (blIsNotOpen)
 		{
