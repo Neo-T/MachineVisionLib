@@ -21,7 +21,10 @@
 #include <iostream>
 #include <vector>
 
-#define INVALID_INDEX	-1	//* 无效索引
+#pragma warning(disable:4996)		//* 屏蔽掉编译时sprintf之类的不安全错误提示
+
+#define INVALID_INDEX	-1			//* 无效索引
+#define INVALID_PROC_ID	0xFFFFFFFF	//* 无效的进程ID
 
 using namespace std;
 
@@ -71,9 +74,17 @@ namespace common_lib {
 	COMMON_LIB_API void IPCCloseSHM(CHAR *pszSHM, HANDLE hSHM);
 	COMMON_LIB_API void IPCDelSHM(HANDLE hSHM);
 
+	COMMON_LIB_API HANDLE IPCCreateCriticalSection(CHAR *pszCSName);
+	COMMON_LIB_API HANDLE IPCOpenCriticalSection(CHAR *pszCSName);
+	COMMON_LIB_API void IPCEnterCriticalSection(HANDLE hMutex);
+	COMMON_LIB_API void IPCExitCriticalSection(HANDLE hMutex);
+	COMMON_LIB_API void IPCDelCriticalSection(HANDLE hMutex);
+
 	COMMON_LIB_API BOOL CreateMemFile(PST_MEM_FILE pstMemFile, DWORD dwFileSize);
 	COMMON_LIB_API void DeletMemFile(PST_MEM_FILE pstMemFile);
 
+	COMMON_LIB_API DWORD StartProcess(CHAR *pszProcName, CHAR *pszStartArgs);
+	COMMON_LIB_API void StopProcess(DWORD dwPID);
 	COMMON_LIB_API UINT IsProcExist(CHAR *pszProcName, INT nProcNameLen);
 	COMMON_LIB_API BOOL IsProcExist(CHAR *pszProcName, ...);		
 

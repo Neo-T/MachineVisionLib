@@ -8,11 +8,6 @@
 #include <tchar.h>
 #include <io.h>
 #include <vector>
-#include <dlib/opencv.h>
-#include <dlib/image_processing/frontal_face_detector.h>
-#include <dlib/image_processing.h>
-//#include <dlib/image_io.h>
-//#include <dlib/opencv/cv_image.h>
 #include "common_lib.h"
 #include "MachineVisionLib.h"
 #include "FaceRecognition.h"
@@ -394,7 +389,7 @@ __lblStop:
 }
 
 int _tmain(int argc, _TCHAR* argv[])
-{
+{	
 	if (argc != 3 && argc != 4 && argc != 2)
 	{
 		cout << "Usage: " << endl << argv[0] << " add [Img Path] [Person Name]" << endl;
@@ -407,7 +402,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		cout << argv[0] << " vlcvideo_catchface [video file path] - Using VLCVideoPlayer module to read the video file registration face" << endl;
 
 		return -1;
-	}
+	}	
 
 	String strOptType(argv[1]);
 	if (String("add") == strOptType.toLowerCase())

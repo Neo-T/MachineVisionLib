@@ -174,6 +174,52 @@ COMMON_LIB_API void common_lib::IPCDelSHM(HANDLE hSHM)
 	CloseHandle(hSHM);
 }
 
+//* 建立一块进程间同步用的临界区
+COMMON_LIB_API HANDLE common_lib::IPCCreateCriticalSection(CHAR *pszCSName)
+{
+	HANDLE hMutex = OpenMutex(MUTEX_ALL_ACCESS, 0, pszCSName);
+	if (hMutex == NULL)
+	{
+		hMutex = CreateMutex(NULL, 0, pszCSName);
+		if (hMutex == NULL)
+		{
+			cout << "error para in " << __FUNCTION__ << "(), in file " << __FILE__ << ", line " << __LINE__ - 3 << ", error code:" << GetLastError() << endl;
+
+			return INVALID_HANDLE_VALUE;
+		}
+	}
+
+	return hMutex;
+}
+
+//* 打开一个临界区
+COMMON_LIB_API HANDLE common_lib::IPCOpenCriticalSection(CHAR *pszCSName)
+{
+	HANDLE hMutex = OpenMutex(MUTEX_ALL_ACCESS, 0, pszCSName);
+	if (hMutex == NULL)
+		return INVALID_HANDLE_VALUE;
+
+	return hMutex;
+}
+
+//* 进入临界区
+COMMON_LIB_API void common_lib::IPCEnterCriticalSection(HANDLE hMutex)
+{
+	WaitForSingleObject(hMutex, INFINITE);
+}
+
+//* 退出临界区
+COMMON_LIB_API void common_lib::IPCExitCriticalSection(HANDLE hMutex)
+{
+	ReleaseMutex(hMutex);
+}
+
+//* 删除临界区
+COMMON_LIB_API void common_lib::IPCDelCriticalSection(HANDLE hMutex)
+{
+	CloseHandle(hMutex);
+}
+
 //* 建立内存文件
 COMMON_LIB_API BOOL common_lib::CreateMemFile(PST_MEM_FILE pstMemFile, DWORD dwFileSize)
 {
@@ -444,5 +490,39 @@ COMMON_LIB_API void common_lib::EnterThreadMutex(THMUTEX *pthMutex)
 COMMON_LIB_API void common_lib::ExitThreadMutex(THMUTEX *pthMutex)
 {
 	LeaveCriticalSection(pthMutex);
+}
+
+//* 启动子进程，参数pszProcName指向进程名称，启动成功返回子进程ID，失败返回-1
+COMMON_LIB_API DWORD common_lib::StartProcess(CHAR *pszProcName, CHAR *pszStartArgs)
+{
+	STARTUPINFO stStartInfo;
+	PROCESS_INFORMATION stProcInfo;
+	CHAR szProc[MAX_PATH + 256];
+
+	memset(szProc, 0, sizeof(szProc));
+	sprintf(szProc, "%s %s", pszProcName, pszStartArgs);
+	if (!pszStartArgs)
+		sprintf(szProc, "%s", pszProcName);
+
+	stStartInfo.cb = sizeof(STARTUPINFO);
+	GetStartupInfo(&stStartInfo);
+	stStartInfo.dwFlags = STARTF_USESHOWWINDOW;
+	stStartInfo.wShowWindow = SW_SHOWNORMAL;
+
+	if (!CreateProcess(NULL, szProc, NULL, NULL, 1, NULL, NULL, NULL, &stStartInfo, &stProcInfo))
+		return INVALID_PROC_ID;
+
+	return stProcInfo.dwProcessId;
+}
+
+//* 结束子进程的运行,参数unPID指定要结束的进程ID号
+COMMON_LIB_API void common_lib::StopProcess(DWORD dwPID)
+{
+	HANDLE hProc;
+	if ((hProc = OpenProcess(PROCESS_TERMINATE, 0, dwPID)) != NULL)
+	{
+		TerminateProcess(hProc, 0);
+		CloseHandle(hProc);
+	}
 }
 

@@ -150,7 +150,6 @@ static BOOL __MVLVideoSaveFace(Mat& mFace, UINT unFaceID)
 	return FALSE;
 }
 
-#if VLCPLAYER_DISPLAY_PREDICT_RESULT
 //* 网络摄像机实时预测人脸
 void __MVLVideoPredict(Mat& mFace, UINT unFaceID, FaceDatabase *pobjFaceDB, unordered_map<UINT, ST_FACE> *pmapFaces, THMUTEX *pthMutexMapFaces)
 {
@@ -162,14 +161,12 @@ void __MVLVideoPredict(Mat& mFace, UINT unFaceID, FaceDatabase *pobjFaceDB, unor
 		(*pmapFaces)[unFaceID].flPredictConfidence = (FLOAT)dblSimilarity;		
 	}
 }
-#endif
 
 static void __MVLVideoDispPreprocessor(Mat& mVideoFrame, void *pvParam, UINT unCurFrameIdx)
 {	
 	static UINT unFaceID = 0;
 	BOOL blIsNotFound;	
 
-#if FACE_DETECT_USE_DNNNET
 	//* 按照预训练模型的Size，输入图像必须是300 x 300，大部分图像基本是16：9或4：3，很少等比例的，为了避免图像变形，我们只好截取图像中间最大面积的正方形区域识别人脸
 	Mat mROI;
 	if (mVideoFrame.cols > mVideoFrame.rows)
@@ -223,9 +220,7 @@ static void __MVLVideoDispPreprocessor(Mat& mVideoFrame, void *pvParam, UINT unC
 			cout << strPersonName << " : " << dblConfidence << endl;
 		}
 	}
-#endif
 
-#if VLCPLAYER_DISPLAY_PREDICT_RESULT
 	//* 在视频上显示预测结果，这里是先显示再更新脸库，以减少不必要的处理（比如新添加的脸不必要显示，因为还未预测）
 	EnterThreadMutex(pstParam->pthMutexMapFaces);
 	{
@@ -260,13 +255,7 @@ static void __MVLVideoDispPreprocessor(Mat& mVideoFrame, void *pvParam, UINT unC
 		}
 	}
 	ExitThreadMutex(pstParam->pthMutexMapFaces);
-#else	
-	#if FACE_DETECT_USE_DNNNET
-		//cv2shell::MarkFaceWithRectangle(mROI, matFaces, 0.8);		
-	#endif
-#endif
 
-#if VLCPLAYER_DISPLAY_PREDICT_RESULT	
 	//* 取出人脸并保存之
 	for (INT i = 0; i < matFaces.rows; i++)
 	{ 
@@ -349,7 +338,6 @@ static void __MVLVideoDispPreprocessor(Mat& mVideoFrame, void *pvParam, UINT unC
 		}
 		ExitThreadMutex(pstParam->pthMutexMapFaces);		
 	}
-#endif
 }
 
 using namespace dlib;
@@ -357,11 +345,9 @@ using namespace dlib;
 //* 通过网络摄像头识别
 static void __MVLVideoFaceHandler(const CHAR *pszURL, BOOL blIsCatchFace, BOOL blIsRTSPStream)
 {
-#if VLCPLAYER_DISPLAY_PREDICT_RESULT
 	unordered_map<UINT, ST_FACE> mapFaces;	//* 网络摄像机检测到的多张人脸信息存储该map中
 	unordered_map<UINT, ST_FACE>::iterator iterFace;
 	THMUTEX thMutexMapFaces;
-#endif
 
 	FaceDatabase objFaceDB;
 	if (!blIsCatchFace)	//* 预测，则加载预测网络
@@ -387,28 +373,18 @@ static void __MVLVideoFaceHandler(const CHAR *pszURL, BOOL blIsCatchFace, BOOL b
 
 	VLCVideoPlayer objVideoPlayer;
 
-#if VLCPLAYER_DISPLAY_EN
 	cvNamedWindow(pszURL, CV_WINDOW_AUTOSIZE);
-#endif	
 
 	if (blIsRTSPStream)
 	{
 		objVideoPlayer.OpenVideoFromeRtsp(pszURL,
-#if VLCPLAYER_DISPLAY_EN
 			__MVLVideoDispPreprocessor,
-#else
-			NULL,
-#endif
 			pszURL, 1000);
 	}
 	else
 	{
 		objVideoPlayer.OpenVideoFromFile(pszURL,
-#if VLCPLAYER_DISPLAY_EN
 			__MVLVideoDispPreprocessor,
-#else
-			NULL, 
-#endif
 			pszURL);
 	}
 
@@ -418,29 +394,20 @@ static void __MVLVideoFaceHandler(const CHAR *pszURL, BOOL blIsCatchFace, BOOL b
 		return;
 	}
 
-#if FACE_DETECT_USE_DNNNET
 	//* 初始化DNN人脸检测网络
 	Net dnnNet = cv2shell::InitFaceDetectDNNet();
 	//CascadeClassifier objCCF;
 	//objCCF.load("C:\\OpenCV3.4\\opencv\\build\\etc\\haarcascades\\haarcascade_frontalface_alt2.xml");
-#endif
 
 	//* 设置播放器显示预处理函数的入口参数
 	ST_VLCPLAYER_FCBDISPPREPROC_PARAM stFCBDispPreprocParam;
-#if FACE_DETECT_USE_DNNNET
 	stFCBDispPreprocParam.pobjDNNNet = &dnnNet;
 	//stFCBDispPreprocParam.pobjCCF = &objCCF;
 	stFCBDispPreprocParam.pobjFaceDB = &objFaceDB;
-#endif
-#if VLCPLAYER_DISPLAY_PREDICT_RESULT
 	stFCBDispPreprocParam.pmapFaces = &mapFaces;
 	InitThreadMutex(&thMutexMapFaces);	//* 对mapFaces的访问必须进行保护，因为这是两个线程并行运行
 	stFCBDispPreprocParam.pthMutexMapFaces = &thMutexMapFaces;
-#endif
-
-#if VLCPLAYER_DISPLAY_EN
 	objVideoPlayer.SetDispPreprocessorInputParam(&stFCBDispPreprocParam);
-#endif
 	
 	CHAR bKey;
 	BOOL blIsPaused = FALSE;
@@ -465,13 +432,6 @@ static void __MVLVideoFaceHandler(const CHAR *pszURL, BOOL blIsCatchFace, BOOL b
 			break;
 		}	
 
-#if !VLCPLAYER_DISPLAY_PREDICT_RESULT
-		//Mat mSrcFrame = objVideoPlayer.GetNextFrame();
-		//if (mSrcFrame.empty())
-		//	continue;
-
-		//Mat mFrame = mSrcFrame.clone();
-#else
 		//* 识别人脸
 		for (iterFace = mapFaces.begin(); iterFace != mapFaces.end(); iterFace++)
 		{
@@ -517,7 +477,6 @@ static void __MVLVideoFaceHandler(const CHAR *pszURL, BOOL blIsCatchFace, BOOL b
 			}
 		}
 		ExitThreadMutex(&thMutexMapFaces);
-#endif
 	}
 
 
@@ -525,9 +484,7 @@ __lblStop:
 	//* 其实不调用这个函数也可以，VLCVideoPlayer类的析构函数会主动调用的
 	objVideoPlayer.stop();	
 
-#if VLCPLAYER_DISPLAY_PREDICT_RESULT
 	UninitThreadMutex(&thMutexMapFaces);
-#endif
 
 	destroyAllWindows();
 }
