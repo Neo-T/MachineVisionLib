@@ -99,6 +99,9 @@ static void __VideoFacePredict(Mat& mVideoFrame, PST_PLAYER_FCBDISPPREPROC_PARAM
 	if (matFaces.empty())
 		return;
 
+	Mat mFaceGray;
+	cvtColor(mROI, mFaceGray, CV_BGR2GRAY);
+
 	//* 识别每张人脸
 	for (INT i = 0; i < matFaces.rows; i++)
 	{
@@ -110,9 +113,6 @@ static void __VideoFacePredict(Mat& mVideoFrame, PST_PLAYER_FCBDISPPREPROC_PARAM
 		INT nCurLTY = static_cast<INT>(matFaces.at<FLOAT>(i, 4) * mROI.rows);
 		INT nCurRBX = static_cast<INT>(matFaces.at<FLOAT>(i, 5) * mROI.cols);
 		INT nCurRBY = static_cast<INT>(matFaces.at<FLOAT>(i, 6) * mROI.rows);
-
-		Mat mFaceGray;
-		cvtColor(mROI, mFaceGray, CV_BGR2GRAY);
 
 		Face objFace(nCurLTX, nCurLTY, nCurRBX, nCurRBY);
 		string strPersonName;
@@ -310,12 +310,6 @@ static void __VLCPlayerFaceHandler(const CHAR *pszURL, BOOL blIsCatchFace, BOOL 
 			objVideoPlayer.OpenVideoFromFile(pszURL, NULL, NULL);
 	}
 
-	if (!objVideoPlayer.start())
-	{
-		cout << "start rtsp stream failed!" << endl;
-		return;
-	}
-
 	//* 初始化DNN人脸检测网络
 	Net objDNNNet = cv2shell::InitFaceDetectDNNet();
 
@@ -326,7 +320,14 @@ static void __VLCPlayerFaceHandler(const CHAR *pszURL, BOOL blIsCatchFace, BOOL 
 		stFCBDispPreprocParam.pobjDNNNet = &objDNNNet;
 		stFCBDispPreprocParam.pobjFaceDB = &objFaceDB;
 		objVideoPlayer.SetDispPreprocessorInputParam(&stFCBDispPreprocParam);
-	}	
+	}
+
+	//* 开始播放
+	if (!objVideoPlayer.start())
+	{
+		cout << "start rtsp stream failed!" << endl;
+		return;
+	}
 	
 	CHAR bKey;
 	BOOL blIsPaused = FALSE;
@@ -346,7 +347,7 @@ static void __VLCPlayerFaceHandler(const CHAR *pszURL, BOOL blIsCatchFace, BOOL 
 		if (objVideoPlayer.IsPlayEnd())
 		{
 			if (blIsRTSPStream)
-				cout << "与网络摄像头的连接断开，无法继续获取实时视频流！" << endl;
+				cout << "The connection with the RTSP stream is disconnected, unable to get the next frame, the process will exit." << endl;
 
 			break;
 		}	
