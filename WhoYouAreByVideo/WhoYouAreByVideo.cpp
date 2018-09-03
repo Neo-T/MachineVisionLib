@@ -226,9 +226,7 @@ static void __FCBVLCPlayerFaceHandler(Mat& mVideoFrame, void *pvParam, UINT unCu
 		pstFaceDBHdr->usFaceLink = usNewFaceLink;
 
 		//* 复制帧数据		
-		memcpy(pubFDBFrameROIData, mFaceGray.data, pstFaceDBHdr->unFrameROIDataBytes);
-		//Mat mROIGray = Mat(pstFaceDBHdr->stROIRect.unHeight, pstFaceDBHdr->stROIRect.unWidth, CV_8UC1, pubFDBFrameROIData);
-		//imshow("Gray-Main", mROIGray);		
+		memcpy(pubFDBFrameROIData, mFaceGray.data, pstFaceDBHdr->unFrameROIDataBytes);			
 	}
 	IPCExitCriticalSection(hMutexFaceDB);
 
@@ -283,7 +281,6 @@ static void __MainProcHandler(const CHAR *pszVideoPath, DWORD& dwSubprocID)
 	//* 声明一个VLC播放器，并建立播放窗口
 	VLCVideoPlayer objVideoPlayer;
 	cvNamedWindow(pszVideoPath, CV_WINDOW_AUTOSIZE);
-	//cvNamedWindow("Gray-Main", CV_WINDOW_AUTOSIZE);
 
 	if ((CHAR)toupper((INT)pszVideoPath[0]) == 'R'
 		&& (CHAR)toupper((INT)pszVideoPath[1]) == 'T'
