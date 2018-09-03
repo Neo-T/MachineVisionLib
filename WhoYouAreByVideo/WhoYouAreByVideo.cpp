@@ -140,7 +140,7 @@ static void __FCBVLCPlayerFaceHandler(Mat& mVideoFrame, void *pvParam, UINT unCu
 
 	Mat mFaceGray;
 	cvtColor(mROI, mFaceGray, CV_BGR2GRAY);
-
+	
 	//* 取出每张脸并将其存入"脸库"
 	IPCEnterCriticalSection(hMutexFaceDB);
 	{
@@ -199,7 +199,7 @@ static void __FCBVLCPlayerFaceHandler(Mat& mVideoFrame, void *pvParam, UINT unCu
 				USHORT usFreeNode = __GetNodeFromFreeLink();
 				if (usFreeNode == INVALID_FACE_NODE_INDEX)	//* 没有空闲节点了，剩下的就不处理了
 				{
-					cout << "Warning: Insufficient face database space!" << endl;
+					cout << "Warning: Insufficient face database space!" << endl;					
 					break;
 				}
 
@@ -209,9 +209,10 @@ static void __FCBVLCPlayerFaceHandler(Mat& mVideoFrame, void *pvParam, UINT unCu
 				pstFaceDB[usFreeNode].nRightBottomX = nCurRBX;
 				pstFaceDB[usFreeNode].nRightBottomY = nCurRBY;
 
+				pstFaceDB[usFreeNode].flPredictConfidence = 0.0f;
+
 				pstFaceDB[usFreeNode].unFrameIdx = unCurFrameIdx;
 				pstFaceDB[usFreeNode].unFaceID = unFaceID++;
-
 
 				//* 放入链表
 				__PutNodeToFaceLink(&usNewFaceLink, usFreeNode, FALSE);
@@ -224,8 +225,10 @@ static void __FCBVLCPlayerFaceHandler(Mat& mVideoFrame, void *pvParam, UINT unCu
 		//* 更新链表
 		pstFaceDBHdr->usFaceLink = usNewFaceLink;
 
-		//* 复制帧数据
+		//* 复制帧数据		
 		memcpy(pubFDBFrameROIData, mFaceGray.data, pstFaceDBHdr->unFrameROIDataBytes);
+		//Mat mROIGray = Mat(pstFaceDBHdr->stROIRect.unHeight, pstFaceDBHdr->stROIRect.unWidth, CV_8UC1, pubFDBFrameROIData);
+		//imshow("Gray-Main", mROIGray);		
 	}
 	IPCExitCriticalSection(hMutexFaceDB);
 
@@ -270,7 +273,7 @@ static void __FCBVLCPlayerFaceHandler(Mat& mVideoFrame, void *pvParam, UINT unCu
 }
 
 //* 主进程的入口处理函数
-static void __MainProcHandler(const CHAR *pszVideoPath)
+static void __MainProcHandler(const CHAR *pszVideoPath, DWORD& dwSubprocID)
 {
 	BOOL blIsRTSPStream;
 
@@ -280,6 +283,7 @@ static void __MainProcHandler(const CHAR *pszVideoPath)
 	//* 声明一个VLC播放器，并建立播放窗口
 	VLCVideoPlayer objVideoPlayer;
 	cvNamedWindow(pszVideoPath, CV_WINDOW_AUTOSIZE);
+	//cvNamedWindow("Gray-Main", CV_WINDOW_AUTOSIZE);
 
 	if ((CHAR)toupper((INT)pszVideoPath[0]) == 'R'
 		&& (CHAR)toupper((INT)pszVideoPath[1]) == 'T'
@@ -332,8 +336,8 @@ static void __MainProcHandler(const CHAR *pszVideoPath)
 		}
 	}
 
+	StopProcess(dwSubprocID);
 
-__lblStop:
 	//* 其实不调用这个函数也可以，VLCVideoPlayer类的析构函数会主动调用的
 	objVideoPlayer.stop();
 
@@ -399,10 +403,10 @@ static void __SubProcHandler(void)
 
 	ST_FACE staFace[SHM_FACE_DB_SIZE_MAX];
 	UCHAR *pubaROIGrayData = new UCHAR[pstFaceDBHdr->unFrameROIDataBytes];
-	Mat mROIGray = Mat(pstFaceDBHdr->stROIRect.unHeight, pstFaceDBHdr->stROIRect.unWidth, CV_8UC3, pubaROIGrayData);
+	Mat mROIGray = Mat(pstFaceDBHdr->stROIRect.unHeight, pstFaceDBHdr->stROIRect.unWidth, CV_8UC1, pubaROIGrayData);
 	while (blIsRunning)
 	{
-		UINT unFaceNum = 0;
+		UINT unFaceNum = 0;		
 
 		//* 取出人脸数据
 		IPCEnterCriticalSection(hMutexFaceDB);
@@ -415,11 +419,13 @@ static void __SubProcHandler(void)
 
 				//* 下一个
 				usFaceNode = pstFace[usFaceNode].usNextNode;
-			}	
+			}							
 
-			memcpy(pubaROIGrayData, pubFDBFrameROIData, pstFaceDBHdr->unFrameROIDataBytes);
+			
+			memcpy(pubaROIGrayData, pubFDBFrameROIData, pstFaceDBHdr->unFrameROIDataBytes);											
 		}		
 		IPCExitCriticalSection(hMutexFaceDB);
+		
 
 		//* 预测		
 		for (UINT i = 0; i < unFaceNum; i++)
@@ -439,7 +445,7 @@ static void __SubProcHandler(void)
 			{
 				staFace[i].flPredictConfidence = dblConfidenceVal;
 				staFace[i].blIsPredicted = TRUE;
-				staFace[i].unFrameIdxForPrediction = staFace[i].unFrameIdx;
+				staFace[i].unFrameIdxForPrediction = staFace[i].unFrameIdx;				
 			}						
 		}
 
@@ -456,22 +462,23 @@ static void __SubProcHandler(void)
 
 				usFaceNode = __IsTheFaceIDExist(staFace[i].unFaceID);
 				if (usFaceNode != INVALID_FACE_NODE_INDEX)
-				{					
+				{										
 					pstFaceDB[usFaceNode].strPersonName = staFace[i].strPersonName;
-					pstFaceDB[usFaceNode].flPredictConfidence = staFace[i].flPredictConfidence;
+					pstFaceDB[usFaceNode].flPredictConfidence = staFace[i].flPredictConfidence;					
 				}
 			}
 		}
-		IPCExitCriticalSection(hMutexFaceDB);
+		IPCExitCriticalSection(hMutexFaceDB);		
 	}
 
 	delete[] pubaROIGrayData;
 }
 
 //* 主进程初始化
-static BOOL __MainProcInit(void)
+static BOOL __MainProcInit(DWORD& dwSubprocID)
 {
 	Rect objROIRect;
+	UINT unFrameROIDataBytes;
 
 	UINT unFrameWidth = DEFAULT_VIDEO_FRAME_WIDTH;
 	UINT unFrameHeight = (unFrameWidth / 16) * 9;
@@ -482,8 +489,10 @@ static BOOL __MainProcInit(void)
 	else
 		objROIRect = Rect(0, 0, unFrameWidth, unFrameHeight);
 
+	unFrameROIDataBytes = objROIRect.width * objROIRect.height * sizeof(UCHAR);	
+
 	//* 脸库的组织结构为：ST_SHM_FACE_DB_HDR + mROIGray.data + FaceDB
-	if (NULL == (pbSHMFaceDB = IPCCreateSHM(SHM_FACE_DB_NAME, sizeof(ST_SHM_FACE_DB_HDR) + objROIRect.width * objROIRect.height * sizeof(UCHAR) + SHM_FACE_DB_SIZE_MAX * sizeof(ST_FACE), &hSHMFaceDB)))
+	if (NULL == (pbSHMFaceDB = IPCCreateSHM(SHM_FACE_DB_NAME, sizeof(ST_SHM_FACE_DB_HDR) + unFrameROIDataBytes + SHM_FACE_DB_SIZE_MAX * sizeof(ST_FACE), &hSHMFaceDB)))
 		return FALSE;
 
 	//* 建立脸库锁
@@ -494,21 +503,13 @@ static BOOL __MainProcInit(void)
 		return FALSE;
 	}
 
-	if (INVALID_PROC_ID == StartProcess("WhoYouAreByVideo.exe", NULL))
-	{
-		IPCDelCriticalSection(hMutexFaceDB);
-		IPCCloseSHM(pbSHMFaceDB, hSHMFaceDB);
+	//* “脸库”相关地址
+	pstFaceDBHdr = (PST_SHM_FACE_DB_HDR)pbSHMFaceDB;											//* 脸库头部数据结构
+	pubFDBFrameROIData = (UCHAR*)(pbSHMFaceDB + sizeof(ST_SHM_FACE_DB_HDR));					//* 视频帧ROI区域数据在"脸库"中的首地址
+	pstFaceDB = (PST_FACE)(pbSHMFaceDB + sizeof(ST_SHM_FACE_DB_HDR) + unFrameROIDataBytes);		//* 每张脸的坐标及相关数据
 
-		cout << "Sub process startup failure for face recognition, the process exit!" << endl;
-		return FALSE;
-	}
-
-	//* 视频帧ROI区域数据在"脸库"中的首地址
-	pubFDBFrameROIData = (UCHAR*)(pbSHMFaceDB + sizeof(ST_SHM_FACE_DB_HDR));
-
-	//* 建立链表
-	pstFaceDBHdr = (PST_SHM_FACE_DB_HDR)pbSHMFaceDB;
-	pstFaceDB = (PST_FACE)(pbSHMFaceDB + sizeof(ST_SHM_FACE_DB_HDR) + pstFaceDBHdr->unFrameROIDataBytes);
+	//* 建立链表	
+	//* =========================================================================
 	PST_FACE pstFace = pstFaceDB;
 	pstFace->usPrevNode = INVALID_FACE_NODE_INDEX;
 	for (INT i = 1; i < SHM_FACE_DB_SIZE_MAX; i++)
@@ -517,15 +518,28 @@ static BOOL __MainProcInit(void)
 		pstFace[i].usNextNode = INVALID_FACE_NODE_INDEX;
 		pstFace[i - 1].usNextNode = i;
 	}
-
 	//* 空闲链表指向第一个节点即可，Face链表尚未有任何数据
 	pstFaceDBHdr->usFreeLink = 0;
 	pstFaceDBHdr->usFaceLink = INVALID_FACE_NODE_INDEX;
+	//* =========================================================================	
 
+	//* 保存ROI区域相关坐标位置及容量
 	pstFaceDBHdr->stROIRect.x = objROIRect.x;
 	pstFaceDBHdr->stROIRect.y = objROIRect.y;
 	pstFaceDBHdr->stROIRect.unWidth = objROIRect.width;
 	pstFaceDBHdr->stROIRect.unHeight = objROIRect.height;
+	pstFaceDBHdr->unFrameROIDataBytes = unFrameROIDataBytes;
+
+	//* 启动子进程
+	dwSubprocID = StartProcess("WhoYouAreByVideo.exe", NULL);
+	if (INVALID_PROC_ID == dwSubprocID)
+	{
+		IPCDelCriticalSection(hMutexFaceDB);
+		IPCCloseSHM(pbSHMFaceDB, hSHMFaceDB);
+
+		cout << "Sub process startup failure for face recognition, the process exit!" << endl;
+		return FALSE;
+	}
 
 	return TRUE;
 }
@@ -547,9 +561,9 @@ static BOOL __SubProcInit(void)
 	//* 脸库访问地址	
 	pstFaceDBHdr = (PST_SHM_FACE_DB_HDR)pbSHMFaceDB;
 	pubFDBFrameROIData = (UCHAR*)(pbSHMFaceDB + sizeof(ST_SHM_FACE_DB_HDR));
-	pstFaceDB = (PST_FACE)(pbSHMFaceDB + sizeof(ST_SHM_FACE_DB_HDR) + pstFaceDBHdr->unFrameROIDataBytes);
+	pstFaceDB = (PST_FACE)(pbSHMFaceDB + sizeof(ST_SHM_FACE_DB_HDR) + pstFaceDBHdr->unFrameROIDataBytes);		
 
-	return FALSE;
+	return TRUE;
 }
 
 //* 去初始化，释放申请占用的各种资源
@@ -562,6 +576,8 @@ static void __Uninit(void)
 
 int _tmain(int argc, _TCHAR* argv[])
 {
+	DWORD dwSubprocID;
+
 	if (argc != 1 && argc != 2)
 	{
 		cout << "Usage: " << argv[0] << " [rtsp address]" << endl;
@@ -577,17 +593,23 @@ int _tmain(int argc, _TCHAR* argv[])
 	//* 建立“脸库”
 	if (argc == 2)
 	{		
-		if (!__MainProcInit())
+		if (!__MainProcInit(dwSubprocID))
+		{
+			cout << "Main process initialization failed" << endl;
 			return 0;
+		}		
 
-		__MainProcHandler(argv[1]);
+		__MainProcHandler(argv[1], dwSubprocID);
 	}
 	else
 	{			
 		if (!__SubProcInit())
+		{
+			cout << "Subprocess initialization failed" << endl;
 			return 0;
+		}
 
-		__SubProcHandler();
+		__SubProcHandler();		
 	}
 
 	__Uninit();
