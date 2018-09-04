@@ -250,7 +250,7 @@ static void __FCBVLCPlayerFaceHandler(Mat& mVideoFrame, void *pvParam, UINT unCu
 				Rect rect;
 
 				//* 标出人名和可信度
-				strPersonLabel = "Name: " + pstFace[usFaceNode].strPersonName;
+				strPersonLabel = "["+ static_cast<ostringstream*>(&(ostringstream() << pstFace[usFaceNode].unFaceID))->str() + "] Name: " + pstFace[usFaceNode].strPersonName;
 				strConfidenceLabel = "Confidence: " + static_cast<ostringstream*>(&(ostringstream() << pstFace[usFaceNode].flPredictConfidence))->str();
 
 				Size personLabelSize = getTextSize(strPersonLabel, FONT_HERSHEY_SIMPLEX, 0.5, 1, &nBaseLine);
@@ -437,13 +437,18 @@ static void __SubProcHandler(void)
 			}
 
 			Face objFace(staFace[i].nLeftTopX, staFace[i].nLeftTopY, staFace[i].nRightBottomX, staFace[i].nRightBottomY);			
-			DOUBLE dblConfidenceVal = objFaceDB.o_pobjVideoPredict->Predict(mROIGray, objFace, objFaceDB.o_objShapePredictor, staFace[i].strPersonName);
-			if (dblConfidenceVal > 0.8f)
+			DOUBLE dblConfidenceVal = objFaceDB.o_pobjVideoPredict->Predict(mROIGray, objFace, objFaceDB.o_objShapePredictor, staFace[i].strPersonName, 0.7);
+			if (dblConfidenceVal > 0.7f)
 			{
-				staFace[i].flPredictConfidence = dblConfidenceVal;
-				staFace[i].blIsPredicted = TRUE;
-				staFace[i].unFrameIdxForPrediction = staFace[i].unFrameIdx;				
-			}						
+				staFace[i].flPredictConfidence = dblConfidenceVal;				
+			}
+			else
+			{
+				staFace[i].flPredictConfidence = 0.0f;
+			}
+
+			staFace[i].blIsPredicted = TRUE;
+			staFace[i].unFrameIdxForPrediction = staFace[i].unFrameIdx;
 		}
 
 		//* 将预测结果放入“脸库”
