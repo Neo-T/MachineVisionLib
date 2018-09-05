@@ -159,7 +159,7 @@ static void __OCVPlayerFacePredict(DType dtVideoSrc, BOOL blIsNeedToReplay)
 {
 	FaceDatabase objFaceDB;
 
-	if (!objFaceDB.LoadDLIB68FaceLandmarksModel("C:\\OpenCV3.4\\dlib-19.10\\models\\shape_predictor_68_face_landmarks.dat"))
+	if (!objFaceDB.LoadDLIB68FaceLandmarksModel("C:\\MVLThirdPartyLib\\dlib-19.10\\models\\shape_predictor_68_face_landmarks.dat"))
 		return;
 
 	if (!objFaceDB.LoadFaceData())
@@ -278,7 +278,7 @@ static void __VLCPlayerFaceHandler(const CHAR *pszURL, BOOL blIsCatchFace, BOOL 
 		}
 	}
 
-	if (!objFaceDB.LoadDLIB68FaceLandmarksModel("C:\\OpenCV3.4\\dlib-19.10\\models\\shape_predictor_68_face_landmarks.dat"))
+	if (!objFaceDB.LoadDLIB68FaceLandmarksModel("C:\\MVLThirdPartyLib\\dlib-19.10\\models\\shape_predictor_68_face_landmarks.dat"))
 		return;
 
 	if (!objFaceDB.LoadCaffeVGGNet("C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE_extract_deploy.prototxt",
