@@ -140,7 +140,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NDEBUG;_WINDOWS;_USRDLL;MACHINEVISIONLIB_EXPORTS;GLOG_NO_ABBREVIATED_SEVERITIES;NO_STRICT;DLIB_HAVE_SSE2;DLIB_DISABLE_ASSERTS;DLIB_JPEG_SUPPORT;DLIB_PNG_SUPPORT;DLIB_HAVE_AVX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;_USRDLL;MACHINEVISIONLIB_EXPORTS;GLOG_NO_ABBREVIATED_SEVERITIES;CPU_ONLY;NO_STRICT;DLIB_HAVE_SSE2;DLIB_DISABLE_ASSERTS;DLIB_JPEG_SUPPORT;DLIB_PNG_SUPPORT;DLIB_HAVE_AVX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>

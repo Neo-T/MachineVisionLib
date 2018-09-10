@@ -526,3 +526,71 @@ COMMON_LIB_API void common_lib::StopProcess(DWORD dwPID)
 	}
 }
 
+//* 检查命令行输入的参数是否合法，pszCmdLineArgs执行的缓冲区保存系统支持的合法参数，nInputArgs参数即为pbaInputAgrv[]用户输入的命令行参数，前者为参数个数后者为参数内容
+COMMON_LIB_API BOOL common_lib::IsCommandLineArgsValid(const CHAR *pszCmdLineArgs, INT nInputArgc, CHAR *pbaInputArgv[])
+{
+	UINT unArgBufLen = strlen(pszCmdLineArgs) + 1;
+
+	CHAR *pszTempBuf = new CHAR[unArgBufLen];
+	memcpy(pszTempBuf, pszCmdLineArgs, unArgBufLen);
+
+	vector<string> vstrArgList;
+	CHAR *pszItem = strtok(pszTempBuf, "{");
+	while (pszItem != NULL)
+	{
+		if (*pszItem == '@')
+		{
+			pszItem = strtok(NULL, "{");
+			continue;
+		}			
+
+		//* 读取完整参数名称
+		string strArgName;
+		CHAR ch;
+		while ((ch = *pszItem++) != ' ')
+			strArgName.push_back(ch);
+
+		vstrArgList.push_back("--" + strArgName);		
+
+		//* 读取简化参数名
+		strArgName.clear();
+		while ((ch = *pszItem++) == ' ');
+		if (ch != '|')
+		{
+			do {
+				strArgName.push_back(ch);				
+				ch = *pszItem++;
+			} while (ch != ' ' && ch != '|');
+
+			vstrArgList.push_back("-" + strArgName);			
+		}
+
+		pszItem = strtok(NULL, "{");
+	}
+
+	delete[] pszTempBuf;
+
+	for (INT i = 1; i < nInputArgc; i++)
+	{
+		if (pbaInputArgv[i][0] != '-')
+			continue;
+
+		CHAR *pszArgName = strtok(pbaInputArgv[i], "=");
+		string strInputArg(pszArgName);
+		BOOL blIsFoundMatched = FALSE;
+		for (INT k = 0; k < vstrArgList.size(); k++)
+		{			
+			if (strInputArg == vstrArgList[k])
+			{
+				blIsFoundMatched = TRUE;
+				break;
+			}
+		}
+
+		if (!blIsFoundMatched)
+			return FALSE;
+	}
+
+	return TRUE;
+}
+

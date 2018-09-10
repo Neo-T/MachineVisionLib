@@ -97,4 +97,7 @@ namespace common_lib {
 	COMMON_LIB_API void UninitThreadMutex(THMUTEX *pthMutex);
 	COMMON_LIB_API void EnterThreadMutex(THMUTEX *pthMutex);
 	COMMON_LIB_API void ExitThreadMutex(THMUTEX *pthMutex);
+
+	//* 判断命令行输入的参数是否合法
+	COMMON_LIB_API BOOL IsCommandLineArgsValid(const CHAR *pszCmdLineArgs, INT nInputArgc, CHAR *pbaInputArgv[]);
 };
