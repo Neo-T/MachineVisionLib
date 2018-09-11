@@ -7,6 +7,7 @@
 #include <string.h>
 #include <tchar.h>
 #include <io.h>
+#include <algorithm>
 #include <vector>
 #include "common_lib.h"
 #include "MachineVisionLib.h"
@@ -23,8 +24,30 @@ static const CHAR *pszCmdLineArgs = {
 	"{picture p   |     | image file classification, non video calssification}"
 };
 
+//* VGG模型之图片分类器
+static void __VGGModelClassifierOfPicture(Net& objDNNNet, vector<string>& vClassNames, const string& strFile)
+{
+	Mat mSrcImg = imread(strFile);
+
+	vector<RecogCategory> vObjects;
+	ObjectDetect(mSrcImg, objDNNNet, vClassNames, vObjects);
+
+	MarkObjectWithRectangle(mSrcImg, vObjects);
+
+	Mat mDstImg;
+	resize(mSrcImg, mDstImg, Size(mSrcImg.cols / 2, mSrcImg.rows / 2), 0, 0, INTER_AREA);
+	imshow("Object Classifier", mDstImg);
+	waitKey(0);
+}
+
+//* VGG模型之视频分类器，参数blIsVideoFile为"真"，则意味这是一个视频文件，"假"则意味着是rtsp流
+static void __VGGModelClassifierOfVideo(Net& objDNNNet, vector<string>& vClassNames, const string& strFile, BOOL blIsVideoFile)
+{
+
+}
+
 //* VGG模型分类器
-static void __VGGModelClassifier(const CHAR *pszFile, BOOL blIsPicture)
+static void __VGGModelClassifier(string& strFile, BOOL blIsPicture)
 {
 	vector<string> vClassNames;
 	Net objDNNNet = InitLightClassifier(vClassNames);
@@ -37,11 +60,18 @@ static void __VGGModelClassifier(const CHAR *pszFile, BOOL blIsPicture)
 	
 	if (blIsPicture)
 	{
-
+		__VGGModelClassifierOfPicture(objDNNNet, vClassNames, strFile);
 	}
 	else
 	{
 		//* 看看是实时视频流还是视频文件，根据文件名前缀判断即可
+		std::transform(strFile.begin(), strFile.end(), strFile.begin(), ::tolower);
+		if (strFile.find("rtsp:", 0) == 0)
+		{
+			__VGGModelClassifierOfVideo(objDNNNet, vClassNames, strFile, FALSE);
+		}
+		else
+			__VGGModelClassifierOfVideo(objDNNNet, vClassNames, strFile, TRUE);
 	}
 }
 
@@ -80,7 +110,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	//* 根据模型设置调用不同的函数进行处理
 	if (strModel == "VGG")
 	{	
-		__VGGModelClassifier(strFile.c_str(), (BOOL)objCmdLineParser.get<bool>("picture"));
+		__VGGModelClassifier(strFile, (BOOL)objCmdLineParser.get<bool>("picture"));
 	}
 	else if (strModel == "Yolo2")
 	{

@@ -381,8 +381,6 @@ static void __VLCPlayerFaceHandler(const CHAR *pszURL, BOOL blIsCatchFace, BOOL 
 		}		
 	}
 
-
-__lblStop:
 	//* 其实不调用这个函数也可以，VLCVideoPlayer类的析构函数会主动调用的
 	objVideoPlayer.stop();		
 

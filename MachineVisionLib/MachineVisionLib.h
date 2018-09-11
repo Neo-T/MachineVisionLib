@@ -120,8 +120,8 @@ namespace cv2shell {
 		EIRSZM_EQUILATERAL
 	};
 
-	MACHINEVISIONLIB void CV2Canny(Mat &mSrc, Mat &matOut);
-	MACHINEVISIONLIB void CV2Canny(const CHAR *pszImgName, Mat &matOut);
+	MACHINEVISIONLIB void CV2Canny(Mat& mSrc, Mat& mOut);
+	MACHINEVISIONLIB void CV2Canny(const CHAR *pszImgName, Mat& mOut);
 
 	template <typename DType> void CV2ShowVideo(DType dtVideoSrc, BOOL blIsNeedToReplay);
 	template MACHINEVISIONLIB void CV2ShowVideo(const CHAR *pszNetURL, BOOL blIsContinueToPlay);
@@ -133,46 +133,43 @@ namespace cv2shell {
 
 	MACHINEVISIONLIB void CV2CreateAlphaMat(Mat &mat);
 
-	MACHINEVISIONLIB string CV2HashValue(Mat &matSrc, PST_IMG_RESIZE pstResize);
+	MACHINEVISIONLIB string CV2HashValue(Mat& mSrc, PST_IMG_RESIZE pstResize);
 	MACHINEVISIONLIB string CV2HashValue(const CHAR *pszImgName, PST_IMG_RESIZE pstResize);
 
 	MACHINEVISIONLIB ST_IMG_RESIZE CV2GetResizeValue(const CHAR *pszImgName);
-	MACHINEVISIONLIB ST_IMG_RESIZE CV2GetResizeValue(Mat &matImg);
+	MACHINEVISIONLIB ST_IMG_RESIZE CV2GetResizeValue(Mat& mImg);
 
-	MACHINEVISIONLIB void ImgEquilateral(Mat &matImg, Mat &matResizeImg, INT nResizeLen, const Scalar &border_color = Scalar(0, 0, 0));
-	MACHINEVISIONLIB void ImgEquilateral(Mat &matImg, Mat &matResizeImg, const Scalar &border_color = Scalar(0, 0, 0));
+	MACHINEVISIONLIB void ImgEquilateral(Mat& mImg, Mat& mResizeImg, INT nResizeLen, Size& objAddedEdgeSize, const Scalar& border_color = Scalar(0, 0, 0));
+	MACHINEVISIONLIB void ImgEquilateral(Mat& mImg, Mat& mResizeImg, Size& objAddedEdgeSize, const Scalar& border_color = Scalar(0, 0, 0));
 
 	MACHINEVISIONLIB INT *FaceDetect(const CHAR *pszImgName, FLOAT flScale = 1.05f, INT nMinNeighbors = 5, INT nMinPossibleFaceSize = 16);
-	MACHINEVISIONLIB INT *FaceDetect(Mat &matImg, FLOAT flScale = 1.05f, INT nMinNeighbors = 5, INT nMinPossibleFaceSize = 16);
-	MACHINEVISIONLIB void MarkFaceWithRectangle(Mat &matImg, INT *pnFaces);
-	MACHINEVISIONLIB void MarkFaceWithRectangle(Mat &matImg, FLOAT flScale = 1.05f, INT nMinNeighbors = 5, INT nMinPossibleFaceSize = 16);
+	MACHINEVISIONLIB INT *FaceDetect(Mat& mImg, FLOAT flScale = 1.05f, INT nMinNeighbors = 5, INT nMinPossibleFaceSize = 16);
+	MACHINEVISIONLIB void MarkFaceWithRectangle(Mat& mImg, INT *pnFaces);
+	MACHINEVISIONLIB void MarkFaceWithRectangle(Mat& mImg, FLOAT flScale = 1.05f, INT nMinNeighbors = 5, INT nMinPossibleFaceSize = 16);
 	MACHINEVISIONLIB void MarkFaceWithRectangle(const CHAR *pszImgName, FLOAT flScale = 1.05f, INT nMinNeighbors = 5, INT nMinPossibleFaceSize = 16);
 
-	MACHINEVISIONLIB Net InitFaceDetectDNNet(void);
-	MACHINEVISIONLIB Mat FaceDetect(Net &dnnNet, Mat &matImg, const Size &size, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 177.0, 123.0));
-	MACHINEVISIONLIB Mat FaceDetect(Net &dnnNet, Mat &matImg, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUALRATIO, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 177.0, 123.0));
-	MACHINEVISIONLIB Mat FaceDetect(Net &dnnNet, const CHAR *pszImgName, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUALRATIO, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 177.0, 123.0));
-	MACHINEVISIONLIB Mat FaceDetect(Net &dnnNet, const CHAR *pszImgName, const Size &size, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 177.0, 123.0));
-	MACHINEVISIONLIB void FaceDetect(Net &dnnNet, Mat &matImg, vector<Face> &vFaces, const Size &size, FLOAT flConfidenceThreshold = 0.3, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 177.0, 123.0));
-	MACHINEVISIONLIB void FaceDetect(Net &dnnNet, Mat &matImg, vector<Face> &vFaces, FLOAT flConfidenceThreshold = 0.3, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUALRATIO, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 177.0, 123.0));
-	MACHINEVISIONLIB void FaceDetect(Net &dnnNet, const CHAR *pszImgName, vector<Face> &vFaces, FLOAT flConfidenceThreshold = 0.3, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUALRATIO, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 177.0, 123.0));
-	MACHINEVISIONLIB void FaceDetect(Net &dnnNet, const CHAR *pszImgName, vector<Face> &vFaces, const Size &size, FLOAT flConfidenceThreshold = 0.3, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 177.0, 123.0));
+	MACHINEVISIONLIB Net InitFaceDetectDNNet(void);	
+	MACHINEVISIONLIB Mat FaceDetect(Net& dnnNet, Mat& mImg, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUALRATIO, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 177.0, 123.0));
+	MACHINEVISIONLIB Mat FaceDetect(Net& dnnNet, const CHAR *pszImgName, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUALRATIO, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 177.0, 123.0));
+	MACHINEVISIONLIB Mat FaceDetect(Net& dnnNet, const CHAR *pszImgName, const Size& size, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 177.0, 123.0));	
+	MACHINEVISIONLIB void FaceDetect(Net& dnnNet, Mat& mImg, vector<Face>& vFaces, FLOAT flConfidenceThreshold = 0.3, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUALRATIO, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 177.0, 123.0));
+	MACHINEVISIONLIB void FaceDetect(Net& dnnNet, const CHAR *pszImgName, vector<Face>& vFaces, FLOAT flConfidenceThreshold = 0.3, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUALRATIO, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 177.0, 123.0));
+	MACHINEVISIONLIB void FaceDetect(Net& dnnNet, const CHAR *pszImgName, vector<Face>& vFaces, const Size& size, FLOAT flConfidenceThreshold = 0.3, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 177.0, 123.0));
 
 
-	MACHINEVISIONLIB void MarkFaceWithRectangle(Mat &matImg, Mat &matFaces, FLOAT flConfidenceThreshold = 0.3, BOOL blIsShow = FALSE);
-	MACHINEVISIONLIB void MarkFaceWithRectangle(Mat &matImg, vector<Face> &vFaces, BOOL blIsShow = FALSE);
-	MACHINEVISIONLIB void MarkFaceWithRectangle(Net &dnnNet, const CHAR *pszImgName, const Size &size, FLOAT flConfidenceThreshold = 0.3, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 177.0, 123.0));
-	MACHINEVISIONLIB void MarkFaceWithRectangle(Net &dnnNet, const CHAR *pszImgName, FLOAT flConfidenceThreshold = 0.3, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUALRATIO, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 177.0, 123.0));
+	MACHINEVISIONLIB void MarkFaceWithRectangle(Mat& mImg, Mat& mFaces, FLOAT flConfidenceThreshold = 0.3, BOOL blIsShow = FALSE);
+	MACHINEVISIONLIB void MarkFaceWithRectangle(Mat& mImg, vector<Face>& vFaces, BOOL blIsShow = FALSE);
+	MACHINEVISIONLIB void MarkFaceWithRectangle(Net& dnnNet, const CHAR *pszImgName, const Size& size, FLOAT flConfidenceThreshold = 0.3, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 177.0, 123.0));
+	MACHINEVISIONLIB void MarkFaceWithRectangle(Net& dnnNet, const CHAR *pszImgName, FLOAT flConfidenceThreshold = 0.3, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUALRATIO, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 177.0, 123.0));
 
-	MACHINEVISIONLIB Net InitLightClassifier(vector<string> &vClassNames);
-	MACHINEVISIONLIB void ObjectDetect(Mat &matImg, Net &dnnNet, vector<string> &vClassNames, vector<RecogCategory> &vObjects, const Size &size, FLOAT flConfidenceThreshold = 0.4, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 117.0, 123.0));
-	MACHINEVISIONLIB void ObjectDetect(Mat &matImg, Net &dnnNet, vector<string> &vClassNames, vector<RecogCategory> &vObjects, FLOAT flConfidenceThreshold = 0.4, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUILATERAL, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 117.0, 123.0));
-	MACHINEVISIONLIB void ObjectDetect(const CHAR *pszImgName, Net &dnnNet, vector<string> &vClassNames, vector<RecogCategory> &vObjects, const Size &size, FLOAT flConfidenceThreshold = 0.4, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 117.0, 123.0));
-	MACHINEVISIONLIB void ObjectDetect(const CHAR *pszImgName, Net &dnnNet, vector<string> &vClassNames, vector<RecogCategory> &vObjects, FLOAT flConfidenceThreshold = 0.4, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUILATERAL, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 117.0, 123.0));
-	MACHINEVISIONLIB void MarkObjectWithRectangle(Mat &matImg, vector<RecogCategory> &vObjects);
-	MACHINEVISIONLIB void MarkObjectWithRectangle(const CHAR *pszImgName, Net &dnnNet, vector<string> &vClassNames, const Size &size, FLOAT flConfidenceThreshold = 0.4, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 117.0, 123.0));
-	MACHINEVISIONLIB void MarkObjectWithRectangle(const CHAR *pszImgName, Net &dnnNet, vector<string> &vClassNames, FLOAT flConfidenceThreshold = 0.4, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUILATERAL, FLOAT flScale = 1.0f, const Scalar &mean = Scalar(104.0, 117.0, 123.0));
-	MACHINEVISIONLIB INT GetObjectNum(vector<RecogCategory> &vObjects, string strObjectName, FLOAT *pflConfidenceOfExist, FLOAT *pflConfidenceOfObjectNum); 
+	MACHINEVISIONLIB Net InitLightClassifier(vector<string>& vClassNames);	
+	MACHINEVISIONLIB void ObjectDetect(Mat& mImg, Net& dnnNet, vector<string>& vClassNames, vector<RecogCategory>& vObjects, FLOAT flConfidenceThreshold = 0.4, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUILATERAL, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 117.0, 123.0));
+	MACHINEVISIONLIB void ObjectDetect(const CHAR *pszImgName, Net& dnnNet, vector<string>& vClassNames, vector<RecogCategory>& vObjects, const Size& size, FLOAT flConfidenceThreshold = 0.4, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 117.0, 123.0));
+	MACHINEVISIONLIB void ObjectDetect(const CHAR *pszImgName, Net& dnnNet, vector<string>& vClassNames, vector<RecogCategory>& vObjects, FLOAT flConfidenceThreshold = 0.4, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUILATERAL, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 117.0, 123.0));
+	MACHINEVISIONLIB void MarkObjectWithRectangle(Mat& mImg, vector<RecogCategory>& vObjects);
+	MACHINEVISIONLIB void MarkObjectWithRectangle(const CHAR *pszImgName, Net& dnnNet, vector<string>& vClassNames, const Size& size, FLOAT flConfidenceThreshold = 0.4, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 117.0, 123.0));
+	MACHINEVISIONLIB void MarkObjectWithRectangle(const CHAR *pszImgName, Net& dnnNet, vector<string>& vClassNames, FLOAT flConfidenceThreshold = 0.4, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUILATERAL, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 117.0, 123.0));
+	MACHINEVISIONLIB INT GetObjectNum(vector<RecogCategory>& vObjects, string strObjectName, FLOAT *pflConfidenceOfExist, FLOAT *pflConfidenceOfObjectNum); 
 
 	MACHINEVISIONLIB void MergeOverlappingRect(vector<ST_DIAGONAL_POINTS> vSrcRects, vector<ST_DIAGONAL_POINTS>& vMergedRects);
 
