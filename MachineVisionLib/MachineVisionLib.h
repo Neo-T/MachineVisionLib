@@ -171,6 +171,15 @@ namespace cv2shell {
 	MACHINEVISIONLIB void MarkObjectWithRectangle(const CHAR *pszImgName, Net& dnnNet, vector<string>& vClassNames, FLOAT flConfidenceThreshold = 0.4, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUILATERAL, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 117.0, 123.0));
 	MACHINEVISIONLIB INT GetObjectNum(vector<RecogCategory>& vObjects, string strObjectName, FLOAT *pflConfidenceOfExist, FLOAT *pflConfidenceOfObjectNum); 
 
+	typedef enum {
+		YOLO2, YOLO2_TINY, YOLO2_VOC, YOLO2_TINY_VOC
+	} ENUM_YOLO2_MODEL_TYPE;
+
+#define YOLO2_PROBABILITY_DATA_INDEX	5
+	MACHINEVISIONLIB Net InitYolo2Classifier(vector<string>& vClassNames, ENUM_YOLO2_MODEL_TYPE enumModelType = YOLO2);
+	MACHINEVISIONLIB void Yolo2ObjectDetect(Mat& mImg, Net& objDNNNet, vector<string>& vClassNames, vector<RecogCategory>& vObjects, FLOAT flConfidenceThreshold = 0.4);	
+
+
 	MACHINEVISIONLIB void MergeOverlappingRect(vector<ST_DIAGONAL_POINTS> vSrcRects, vector<ST_DIAGONAL_POINTS>& vMergedRects);
 
 	MACHINEVISIONLIB void ShowImageWindow(CHAR *pszWindowTitle, BOOL blIsShowing);

@@ -624,6 +624,10 @@ static Mat __DNNFaceDetect(Net& dnnNet, Mat& mImg, const Size& size, Size& objAd
 	FLOAT flSrcImgHeight = (FLOAT)(mImg.rows - 2 * objAddedEdgeSize.height);
 	for (INT i = 0; i < mFaces.rows; i++)
 	{
+		FLOAT flConfidenceVal = mFaces.at<FLOAT>(i, 2);
+		if (flConfidenceVal < 0.3)	//* 低于0.3的就不再理会
+			continue;
+
 		mFaces.at<FLOAT>(i, 3) = ((FLOAT)(static_cast<INT>(mFaces.at<FLOAT>(i, 3) * mImg.cols) - objAddedEdgeSize.width))  / flSrcImgWidth;
 		mFaces.at<FLOAT>(i, 4) = ((FLOAT)(static_cast<INT>(mFaces.at<FLOAT>(i, 4) * mImg.rows) - objAddedEdgeSize.height)) / flSrcImgHeight;
 		mFaces.at<FLOAT>(i, 5) = ((FLOAT)(static_cast<INT>(mFaces.at<FLOAT>(i, 5) * mImg.cols) - objAddedEdgeSize.width))  / flSrcImgWidth;
@@ -916,7 +920,7 @@ MACHINEVISIONLIB void cv2shell::MarkFaceWithRectangle(Mat& mImg, vector<Face>& v
 //* 初始化轻型分类器，其实就是把DNN网络配置文件和训练好的模型加载到内存并据此建立DNN网络
 MACHINEVISIONLIB Net cv2shell::InitLightClassifier(vector<string>& vClassNames)
 {
-	dnn::Net dnnNet;
+	Net objDNNNet;
 
 	ifstream ifsClassNamesFile("C:\\Windows\\System32\\models\\vgg_ssd\\voc.names");
 	if (ifsClassNamesFile.is_open())
@@ -926,18 +930,19 @@ MACHINEVISIONLIB Net cv2shell::InitLightClassifier(vector<string>& vClassNames)
 			vClassNames.push_back(strClassName);
 	}
 	else
-		return dnnNet;
+		return objDNNNet;
 
-	String strModelCfgFile("C:\\Windows\\System32\\models\\vgg_ssd\\deploy.prototxt"),
-		strModelFile("C:\\Windows\\System32\\models\\vgg_ssd\\VGG_VOC0712_SSD_300x300_iter_120000.caffemodel");
+	String strModelCfgFile("C:\\Windows\\System32\\models\\vgg_ssd\\deploy.prototxt");
+	String strModelFile("C:\\Windows\\System32\\models\\vgg_ssd\\VGG_VOC0712_SSD_300x300_iter_120000.caffemodel");
 
-	dnnNet = readNetFromCaffe(strModelCfgFile, strModelFile);
-	if (dnnNet.empty())
-	{
-		cout << "DNN网络建立失败，请确认输入的网络配置文件『deploy.prototxt』和模型文件『VGG_SSD.caffemodel』存在且格式正确" << endl;
-	}
+	try {
+		objDNNNet = readNetFromCaffe(strModelCfgFile, strModelFile);
+	} catch (Exception& ex) {
+		cout << "DNN network load failed，please confirm that the config file『deploy.prototxt』and model file『VGG_SSD.caffemodel』 exits and the format is correct: " << endl;
+		cout << ex.what() << endl;
+	}		
 
-	return dnnNet;
+	return objDNNNet;
 }
 
 //* 使用DNN网络识别目标属于哪种物体
@@ -947,34 +952,34 @@ static void __ObjectDetect(Mat& mImg, Net& dnnNet, vector<string>& vClassNames, 
 	if (mImg.channels() == 4)
 		cvtColor(mImg, mImg, COLOR_BGRA2BGR);
 
-	//* 加载图片文件并归一化，size参数指定图片要缩放的目标尺寸，mena指定要减去的平均值的平均标量（红蓝绿三个颜色通道都要减）
-	Mat matInputBlob = blobFromImage(mImg, flScale, size, mean, false, false);
+	//* 加载图片文件并归一化，size参数指定图片要缩放的目标尺寸，mean指定要减去的平均值的平均标量（红蓝绿三个颜色通道都要减）
+	Mat mInputBlob = blobFromImage(mImg, flScale, size, mean, FALSE, FALSE);
 
 	//* 设置网络输入
-	dnnNet.setInput(matInputBlob, "data");
+	dnnNet.setInput(mInputBlob, "data");
 
 	//* 计算网络输出
-	Mat matDetection = dnnNet.forward("detection_out");
+	Mat mDetection = dnnNet.forward("detection_out");
 
-	Mat matIdentifyObjects(matDetection.size[2], matDetection.size[3], CV_32F, matDetection.ptr<FLOAT>());
+	Mat mIdentifyObjects(mDetection.size[2], mDetection.size[3], CV_32F, mDetection.ptr<FLOAT>());
 
-	for (int i = 0; i < matIdentifyObjects.rows; i++)
+	for (int i = 0; i < mIdentifyObjects.rows; i++)
 	{
-		FLOAT flConfidenceVal = matIdentifyObjects.at<FLOAT>(i, 2);
+		FLOAT flConfidenceVal = mIdentifyObjects.at<FLOAT>(i, 2);
 
 		if (flConfidenceVal < flConfidenceThreshold)
 			continue;
 
 		RecogCategory category;
 
-		category.nLeftTopX = static_cast<INT>(matIdentifyObjects.at<FLOAT>(i, 3) * mImg.cols) - objAddedEdgeSize.width;
-		category.nLeftTopY = static_cast<INT>(matIdentifyObjects.at<FLOAT>(i, 4) * mImg.rows) - objAddedEdgeSize.height;
-		category.nRightBottomX = static_cast<INT>(matIdentifyObjects.at<FLOAT>(i, 5) * mImg.cols) - objAddedEdgeSize.width;
-		category.nRightBottomY = static_cast<INT>(matIdentifyObjects.at<FLOAT>(i, 6) * mImg.rows) - objAddedEdgeSize.height;		
+		category.nLeftTopX = static_cast<INT>(mIdentifyObjects.at<FLOAT>(i, 3) * mImg.cols) - objAddedEdgeSize.width;
+		category.nLeftTopY = static_cast<INT>(mIdentifyObjects.at<FLOAT>(i, 4) * mImg.rows) - objAddedEdgeSize.height;
+		category.nRightBottomX = static_cast<INT>(mIdentifyObjects.at<FLOAT>(i, 5) * mImg.cols) - objAddedEdgeSize.width;
+		category.nRightBottomY = static_cast<INT>(mIdentifyObjects.at<FLOAT>(i, 6) * mImg.rows) - objAddedEdgeSize.height;		
 
 		category.flConfidenceVal = flConfidenceVal;
 
-		size_t tObjClass = (size_t)matIdentifyObjects.at<FLOAT>(i, 1);
+		size_t tObjClass = (size_t)mIdentifyObjects.at<FLOAT>(i, 1);
 		category.strCategoryName = vClassNames[tObjClass];
 		vObjects.push_back(category);
 	}
@@ -991,12 +996,12 @@ MACHINEVISIONLIB void cv2shell::ObjectDetect(Mat& mImg, Net& dnnNet, vector<stri
 	}
 	else
 	{
-		Mat matEquilateralImg;
+		Mat mEquilateralImg;
 		Size objAddedEdgeSize;
 
-		ImgEquilateral(mImg, matEquilateralImg, objAddedEdgeSize);
+		ImgEquilateral(mImg, mEquilateralImg, objAddedEdgeSize);
 		
-		__ObjectDetect(matEquilateralImg, dnnNet, vClassNames, vObjects, Size(300, 300), objAddedEdgeSize, flConfidenceThreshold, flScale, mean);
+		__ObjectDetect(mEquilateralImg, dnnNet, vClassNames, vObjects, Size(300, 300), objAddedEdgeSize, flConfidenceThreshold, flScale, mean);
 	}
 }
 
@@ -1040,6 +1045,8 @@ MACHINEVISIONLIB void cv2shell::MarkObjectWithRectangle(Mat& mImg, vector<RecogC
 		//* 画出矩形
 		Rect rectObj(object.nLeftTopX, object.nLeftTopY, (object.nRightBottomX - object.nLeftTopX), (object.nRightBottomY - object.nLeftTopY));
 		rectangle(mImg, rectObj, Scalar(0, 255, 0));
+
+		//cout << object.nLeftTopX << ", " << object.nLeftTopY << " - " << object.nRightBottomX << ", " << object.nRightBottomY << endl;
 
 		//* 在被监测图片上输出可信度概率
 		//* ======================================================================================
@@ -1174,6 +1181,119 @@ __lblLoop:
 	goto __lblLoop;
 }
 
+//* 初始化Yolo2分类器模型
+static Net __InitYolo2Classifier(const CHAR *pszClassNameFile, const CHAR *pszModelCfgFile, const CHAR *pszModelWeightFile, vector<string>& vClassNames)
+{
+	Net objDNNNet;
+
+	//* 加载类别名称
+	ifstream ifsClassNamesFile(pszClassNameFile);
+	if (ifsClassNamesFile.is_open())
+	{
+		string strClassName = "";
+		while (getline(ifsClassNamesFile, strClassName))
+			vClassNames.push_back(strClassName);
+	}
+	else
+	{
+		cout << "DNN network load failed，please confirm the label file『" << pszClassNameFile << "』 is exist." << endl;
+
+		return objDNNNet;
+	}		
+	
+	try {
+		objDNNNet = readNetFromDarknet(pszModelCfgFile, pszModelWeightFile);
+	}
+	catch (Exception& ex) {
+		cout << "DNN load failed，please confirm the config file『" << pszModelCfgFile << "』and weight file『" << pszModelWeightFile << "yolov2.weights』 exist and the format is correct: " << endl;
+		cout << ex.what() << endl;
+	}
+
+	return objDNNNet;
+}
+
+//* 初始化Yolo2分类器
+MACHINEVISIONLIB Net cv2shell::InitYolo2Classifier(vector<string>& vClassNames, ENUM_YOLO2_MODEL_TYPE enumModelType)
+{
+	switch (enumModelType)
+	{
+	case YOLO2_TINY_VOC:
+		return __InitYolo2Classifier("C:\\Windows\\System32\\models\\yolov2\\voc.names",
+									 "C:\\Windows\\System32\\models\\yolov2\\yolov2-tiny-voc.cfg",
+									 "C:\\Windows\\System32\\models\\yolov2\\yolov2-tiny-voc.weights",
+									 vClassNames);
+
+	case YOLO2_VOC:
+		return __InitYolo2Classifier("C:\\Windows\\System32\\models\\yolov2\\voc.names",
+									 "C:\\Windows\\System32\\models\\yolov2\\yolov2-voc.cfg",
+									 "C:\\Windows\\System32\\models\\yolov2\\yolov2-voc.weights",
+									 vClassNames);
+
+	case YOLO2_TINY:
+		return __InitYolo2Classifier("C:\\Windows\\System32\\models\\yolov2\\coco.names",
+									 "C:\\Windows\\System32\\models\\yolov2\\yolov2-tiny.cfg",
+									 "C:\\Windows\\System32\\models\\yolov2\\yolov2-tiny.weights",
+									 vClassNames);
+
+	case YOLO2:
+	default:
+		return __InitYolo2Classifier("C:\\Windows\\System32\\models\\yolov2\\coco.names",
+									 "C:\\Windows\\System32\\models\\yolov2\\yolov2.cfg",
+									 "C:\\Windows\\System32\\models\\yolov2\\yolov2.weights",
+									 vClassNames);
+	}	
+}
+
+//* 使用Yolo2模型进行目标检测
+MACHINEVISIONLIB void cv2shell::Yolo2ObjectDetect(Mat& mImg, Net& objDNNNet, vector<string>& vClassNames, vector<RecogCategory>& vObjects, FLOAT flConfidenceThreshold)
+{
+	if (mImg.channels() == 4)
+		cvtColor(mImg, mImg, COLOR_BGRA2BGR);
+
+	//* 按网络要求输入数据并预测，经过实测发现，这个模型不需要将图片等边后再输入，等边后的预测效果反而不好，奇怪
+	Mat mInputBlob = blobFromImage(mImg, 1 / 255.F, Size(416, 416), Scalar(), FALSE, FALSE);
+	objDNNNet.setInput(mInputBlob, "data");
+	Mat mDetection = objDNNNet.forward();
+
+	//* 取出分类结果
+	/*
+	 * mDetection保存着分类数据，以行为单位，一行一个物体，行结构相同，列的存储单位为FLOAT，行结构如下：
+	 * 第0、1列：目标物体区域中心点的坐标系数，这个系数并不是实际的坐标位置，而是实际位置[x，y]分别除以图像列宽cols和行宽rows得到的
+	 * 第2、3列：目标物体所占矩形区域的宽度width和高度height
+	 * 第4   列：未使用，含义不可知
+	 * 第5-N 列: 预训练模型支持多少种分类，就有多少列，Yolo2模型支持识别80种物体，则这里就有80列，每一列与coco.names文件给出的分类列表由上到下，一一对应，列值为该物体属于coco.names列表所对应分类的概率
+	 */
+	for(INT i=0; i<mDetection.rows; i++)
+	{ 
+		//* 获取概率数据首地址
+		FLOAT *pflProbData = &mDetection.at<FLOAT>(i, YOLO2_PROBABILITY_DATA_INDEX);
+
+		//* 遍历整列概率数据，找出最大概率分类的位置索引，注意这是相对索引，是从pflProbData开始的
+		UINT unMaxProbabilityIndex = max_element(pflProbData, pflProbData + mDetection.cols - YOLO2_PROBABILITY_DATA_INDEX) - pflProbData;
+
+		//* 获取概率值，并抛弃概率值较低的分类
+		FLOAT flConfidenceVal = mDetection.at<FLOAT>(i, unMaxProbabilityIndex + YOLO2_PROBABILITY_DATA_INDEX);
+		if (flConfidenceVal < flConfidenceThreshold)
+			continue;
+
+		//* 中心点坐标位置
+		FLOAT flCenterX   = mDetection.at<FLOAT>(i, 0);
+		FLOAT flCenterY   = mDetection.at<FLOAT>(i, 1);
+		FLOAT flObjWidth  = mDetection.at<FLOAT>(i, 2);
+		FLOAT flObjHeight = mDetection.at<FLOAT>(i, 3);
+
+		RecogCategory category;
+
+		category.nLeftTopX     = static_cast<INT>((flCenterX - flObjWidth  / 2) * mImg.cols);
+		category.nLeftTopY     = static_cast<INT>((flCenterY - flObjHeight / 2) * mImg.rows);
+		category.nRightBottomX = static_cast<INT>((flCenterX + flObjWidth  / 2) * mImg.cols);
+		category.nRightBottomY = static_cast<INT>((flCenterY + flObjHeight / 2) * mImg.rows);
+
+		category.flConfidenceVal = flConfidenceVal;		
+		category.strCategoryName = vClassNames[unMaxProbabilityIndex];
+		vObjects.push_back(category);
+	}
+}
 
 //* 显示或者隐藏OpenCV的窗口，参数blIsShowing：TRUE，显示；FALSE，隐藏
 MACHINEVISIONLIB void cv2shell::ShowImageWindow(CHAR *pszWindowTitle, BOOL blIsShowing)
