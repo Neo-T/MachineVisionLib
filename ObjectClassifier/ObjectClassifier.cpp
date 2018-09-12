@@ -33,9 +33,16 @@ static void __VGGModelClassifierOfPicture(Net& objDNNNet, vector<string>& vClass
 	ObjectDetect(mSrcImg, objDNNNet, vClassNames, vObjects);
 
 	MarkObjectWithRectangle(mSrcImg, vObjects);
+	
+	Mat mDstImg = mSrcImg;
 
-	Mat mDstImg;
-	resize(mSrcImg, mDstImg, Size(mSrcImg.cols / 2, mSrcImg.rows / 2), 0, 0, INTER_AREA);
+	INT nPCScreenWidth = GetSystemMetrics(SM_CXSCREEN);
+	INT nPCScreenHeight = GetSystemMetrics(SM_CYSCREEN);
+	if (mSrcImg.cols > nPCScreenWidth || mSrcImg.rows > nPCScreenHeight)
+	{
+		resize(mSrcImg, mDstImg, Size((mSrcImg.cols * 2) / 3, (mSrcImg.rows * 2) / 3), 0, 0, INTER_AREA);
+	}
+	
 	imshow("Object Classifier", mDstImg);
 	waitKey(0);
 }

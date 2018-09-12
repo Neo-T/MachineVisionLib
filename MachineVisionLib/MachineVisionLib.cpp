@@ -620,14 +620,14 @@ static Mat __DNNFaceDetect(Net& dnnNet, Mat& mImg, const Size& size, Size& objAd
 		return mFaces;
 
 	//* 计算增加的边框宽度系数，并将坐标位置转换为原始图像的位置
-	FLOAT flWidthScale = (FLOAT)objAddedEdgeSize.width / (FLOAT)mImg.cols;
-	FLOAT flHeightScale = (FLOAT)objAddedEdgeSize.height / (FLOAT)mImg.rows;
+	FLOAT flSrcImgWidth = (FLOAT)(mImg.cols - 2 * objAddedEdgeSize.width);
+	FLOAT flSrcImgHeight = (FLOAT)(mImg.rows - 2 * objAddedEdgeSize.height);
 	for (INT i = 0; i < mFaces.rows; i++)
 	{
-		mFaces.at<FLOAT>(i, 3) -= flWidthScale;
-		mFaces.at<FLOAT>(i, 4) -= flHeightScale;
-		mFaces.at<FLOAT>(i, 5) -= flWidthScale;
-		mFaces.at<FLOAT>(i, 6) -= flHeightScale;
+		mFaces.at<FLOAT>(i, 3) = ((FLOAT)(static_cast<INT>(mFaces.at<FLOAT>(i, 3) * mImg.cols) - objAddedEdgeSize.width))  / flSrcImgWidth;
+		mFaces.at<FLOAT>(i, 4) = ((FLOAT)(static_cast<INT>(mFaces.at<FLOAT>(i, 4) * mImg.rows) - objAddedEdgeSize.height)) / flSrcImgHeight;
+		mFaces.at<FLOAT>(i, 5) = ((FLOAT)(static_cast<INT>(mFaces.at<FLOAT>(i, 5) * mImg.cols) - objAddedEdgeSize.width))  / flSrcImgWidth;
+		mFaces.at<FLOAT>(i, 6) = ((FLOAT)(static_cast<INT>(mFaces.at<FLOAT>(i, 6) * mImg.rows) - objAddedEdgeSize.height)) / flSrcImgHeight;
 	}
 
 	return mFaces;
