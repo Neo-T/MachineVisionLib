@@ -1044,7 +1044,7 @@ MACHINEVISIONLIB void cv2shell::MarkObjectWithRectangle(Mat& mImg, vector<RecogC
 
 		//* »­³ö¾ØÐÎ
 		Rect rectObj(object.nLeftTopX, object.nLeftTopY, (object.nRightBottomX - object.nLeftTopX), (object.nRightBottomY - object.nLeftTopY));
-		rectangle(mImg, rectObj, Scalar(0, 255, 0));
+		rectangle(mImg, rectObj, Scalar(0, 255, 0), 2);
 
 		//cout << object.nLeftTopX << ", " << object.nLeftTopY << " - " << object.nRightBottomX << ", " << object.nRightBottomY << endl;
 

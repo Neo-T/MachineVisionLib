@@ -289,7 +289,7 @@ static void __MainProcHandler(const CHAR *pszVideoPath, DWORD& dwSubprocID)
 		&& (CHAR)toupper((INT)pszVideoPath[4]) == ':')
 	{
 		blIsRTSPStream = TRUE;
-		objVideoPlayer.OpenVideoFromeRtsp(pszVideoPath, __FCBVLCPlayerFaceHandler, pszVideoPath, 1000);
+		objVideoPlayer.OpenVideoFromeRtsp(pszVideoPath, __FCBVLCPlayerFaceHandler, pszVideoPath, 500);
 	}
 	else
 	{
@@ -305,7 +305,7 @@ static void __MainProcHandler(const CHAR *pszVideoPath, DWORD& dwSubprocID)
 	//* ¿ªÊ¼²¥·Å
 	if (!objVideoPlayer.start())
 	{
-		cout << "start rtsp stream failed!" << endl;
+		cout << "Video playback failed!" << endl;
 		return;
 	}
 
