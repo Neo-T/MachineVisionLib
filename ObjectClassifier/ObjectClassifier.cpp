@@ -32,6 +32,9 @@ static void __VGGModelClassifierOfPicture(Net& objDNNNet, vector<string>& vClass
 	vector<RecogCategory> vObjects;
 	ObjectDetect(mSrcImg, objDNNNet, vClassNames, vObjects);
 
+	//* 识别耗费的时间	
+	cout << "detection time: " << GetTimeSpentInNetDetection(objDNNNet) << " ms" << endl;
+
 	MarkObjectWithRectangle(mSrcImg, vObjects);
 	
 	Mat mDstImg = mSrcImg;
@@ -88,6 +91,9 @@ static void __Yolo2ModelClassifierOfPicture(Net& objDNNNet, vector<string>& vCla
 
 	vector<RecogCategory> vObjects;
 	Yolo2ObjectDetect(mSrcImg, objDNNNet, vClassNames, vObjects);
+
+	//* 识别耗费的时间
+	cout << "detection time: " << GetTimeSpentInNetDetection(objDNNNet) << " ms" << endl;
 
 	MarkObjectWithRectangle(mSrcImg, vObjects);
 

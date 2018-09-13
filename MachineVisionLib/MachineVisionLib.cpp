@@ -1250,8 +1250,31 @@ MACHINEVISIONLIB void cv2shell::Yolo2ObjectDetect(Mat& mImg, Net& objDNNNet, vec
 	if (mImg.channels() == 4)
 		cvtColor(mImg, mImg, COLOR_BGRA2BGR);
 
-	//* 按网络要求输入数据并预测，经过实测发现，这个模型不需要将图片等边后再输入，等边后的预测效果反而不好，奇怪
+#define IMG_EQUILATERAL 0	//* 是否需要将图像等边处理，经过实测发现，这个模型不需要将图片等边后再输入，等边后的预测效果反而不好，奇怪
+
+#if IMG_EQUILATERAL
+	Mat mEquilateralImg;
+	Size objAddedEdgeSize;
+
+	if (mImg.cols == mImg.rows)
+	{
+		mEquilateralImg = mImg;
+		objAddedEdgeSize = Size(0, 0);
+	}
+	else 
+	{
+		ImgEquilateral(mImg, mEquilateralImg, objAddedEdgeSize);		
+	}
+#endif	
+
+#if IMG_EQUILATERAL
+	//* 按网络要求输入数据并预测
+	Mat mInputBlob = blobFromImage(mEquilateralImg, 1 / 255.F, Size(416, 416), Scalar(), FALSE, FALSE);
+#else
+	//* 按网络要求输入数据并预测
 	Mat mInputBlob = blobFromImage(mImg, 1 / 255.F, Size(416, 416), Scalar(), FALSE, FALSE);
+#endif
+	
 	objDNNNet.setInput(mInputBlob, "data");
 	Mat mDetection = objDNNNet.forward();
 
@@ -1284,15 +1307,34 @@ MACHINEVISIONLIB void cv2shell::Yolo2ObjectDetect(Mat& mImg, Net& objDNNNet, vec
 
 		RecogCategory category;
 
+#if IMG_EQUILATERAL
+		category.nLeftTopX     = static_cast<INT>((flCenterX - flObjWidth  / 2) * mEquilateralImg.cols) - objAddedEdgeSize.width;
+		category.nLeftTopY     = static_cast<INT>((flCenterY - flObjHeight / 2) * mEquilateralImg.rows) - objAddedEdgeSize.height;
+		category.nRightBottomX = static_cast<INT>((flCenterX + flObjWidth  / 2) * mEquilateralImg.cols) - objAddedEdgeSize.width;
+		category.nRightBottomY = static_cast<INT>((flCenterY + flObjHeight / 2) * mEquilateralImg.rows) - objAddedEdgeSize.height;
+#else
 		category.nLeftTopX     = static_cast<INT>((flCenterX - flObjWidth  / 2) * mImg.cols);
 		category.nLeftTopY     = static_cast<INT>((flCenterY - flObjHeight / 2) * mImg.rows);
 		category.nRightBottomX = static_cast<INT>((flCenterX + flObjWidth  / 2) * mImg.cols);
 		category.nRightBottomY = static_cast<INT>((flCenterY + flObjHeight / 2) * mImg.rows);
+#endif
 
 		category.flConfidenceVal = flConfidenceVal;		
 		category.strCategoryName = vClassNames[unMaxProbabilityIndex];
 		vObjects.push_back(category);
 	}
+
+#undef IMG_EQUILATERAL
+}
+
+//* 返回在DNN网络上花费的时间，单位毫秒
+MACHINEVISIONLIB DOUBLE cv2shell::GetTimeSpentInNetDetection(Net& objDNNNet)
+{
+	vector<DOUBLE> vdblLayersTimings;
+	DOUBLE dblFreq = getTickFrequency() / 1000;
+	DOUBLE dblTime = objDNNNet.getPerfProfile(vdblLayersTimings) / dblFreq;
+
+	return dblTime;
 }
 
 //* 显示或者隐藏OpenCV的窗口，参数blIsShowing：TRUE，显示；FALSE，隐藏
