@@ -1422,7 +1422,10 @@ void caffe2shell::ExtractFeature(caffe::Net<DType> *pNet, caffe::MemoryDataLayer
 	pMemDataLayer->AddMatVector(vmatImgROI, vnLabel);
 
 	//* 前向传播，获取特征数据
-	pNet->Forward();
+	PerformanceTimer objPerformTimer;
+	objPerformTimer.start();
+	pNet->Forward();	
+	cout << "Execution time of caffe net Forward(): " << objPerformTimer.end() / 1000 << "ms." << endl;
 
 	//* 关于Blob讲得最详细的Blog地址如下：
 	//* https://blog.csdn.net/junmuzi/article/details/52761379
@@ -1432,10 +1435,7 @@ void caffe2shell::ExtractFeature(caffe::Net<DType> *pNet, caffe::MemoryDataLayer
 
 	//* 一旦调用cpu_data()，caffe会自动同步GPU->CPU（当然没有使用GPU，那么数据一直在CPU这边，caffe就不会自动同步了）
 	const DType *pFeatureData = blobImgFeature->cpu_data();
-
-	//* 将特征数据存入出口参数，供上层调用函数使用
-	for (INT i = 0; i < nFeatureDimension; i++)
-		pdtaImgFeature[i] = pFeatureData[i];
+	memcpy(pdtaImgFeature, pFeatureData, nFeatureDimension * sizeof(DType));
 }
 
 //* 提取图像特征
@@ -1460,9 +1460,6 @@ void caffe2shell::ExtractFeature(caffe::Net<DType> *pNet, caffe::MemoryDataLayer
 	boost::shared_ptr<caffe::Blob<DType>> blobImgFeature = pNet->blob_by_name(pszBlobName);
 
 	//* 一旦调用cpu_data()，caffe会自动同步GPU->CPU（当然没有使用GPU，那么数据一直在CPU这边，caffe就不会自动同步了）
-	const DType *pFeatureData = blobImgFeature->cpu_data();
-
-	//* 将特征数据存入出口参数，供上层调用函数使用
-	for (INT i = 0; i < nFeatureDimension; i++)	
-		matImgFeature.at<DType>(0, i) = pFeatureData[i];	
+	const DType *pFeatureData = blobImgFeature->cpu_data();	
+	memcpy(matImgFeature.data, pFeatureData, nFeatureDimension * sizeof(DType));
 }

@@ -56,6 +56,7 @@ static BOOL __AddFace(const CHAR *pszFaceImgFile, const CHAR *pezPersonName)
 //* 通过图片预测人脸
 static void __PictureFacePredict(const CHAR *pszFaceImgFile)
 {
+	PerformanceTimer objPerformTimer;	//* 计时类
 	FaceDatabase objFaceDB;
 
 	if (!objFaceDB.LoadFaceData())
@@ -72,8 +73,10 @@ static void __PictureFacePredict(const CHAR *pszFaceImgFile)
 	}
 
 	cout << "Start find ..." << endl;
-	string strPersonName;
-	DOUBLE dblSimilarity = objFaceDB.Predict(pszFaceImgFile, strPersonName);
+	string strPersonName;	
+	objPerformTimer.start();	//* 开始计时
+	DOUBLE dblSimilarity = objFaceDB.Predict(pszFaceImgFile, strPersonName);	
+	cout << "Time spent " << objPerformTimer.end() / 1000 << "ms." << endl;
 	if (dblSimilarity > 0.55)
 	{
 		cout << "Found a matched face: 『" << strPersonName << "』, the similarity is " << dblSimilarity << endl;

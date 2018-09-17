@@ -389,7 +389,7 @@ static void __SubProcHandler(void)
 		return;
 
 	if (!objFaceDB.LoadCaffeVGGNet("C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE_extract_deploy.prototxt",
-		"C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE.caffemodel"))
+								   "C:\\windows\\system32\\models\\vgg_face_caffe\\VGG_FACE.caffemodel"))
 	{
 		cout << "Load Failed, the process will be exited!" << endl;
 		return;
