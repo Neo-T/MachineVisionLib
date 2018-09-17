@@ -150,7 +150,6 @@ static void __VideoFacePredict(Mat& mVideoFrame, PST_PLAYER_FCBDISPPREPROC_PARAM
 static void __FCBOCVPlayerFacePredict(Mat& mVideoFrame, DWORD64 dw64InputParam)
 {
 	PST_PLAYER_FCBDISPPREPROC_PARAM pstParam= (PST_PLAYER_FCBDISPPREPROC_PARAM)dw64InputParam;
-
 	__VideoFacePredict(mVideoFrame, pstParam);
 
 	imshow("Opencv Player", mVideoFrame);

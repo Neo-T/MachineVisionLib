@@ -44,7 +44,7 @@
 #include <caffe/layers/softmax_layer.hpp>
 #endif
 
-#define NEED_GPU	0
+#define NEED_GPU	1
 
 #if NEED_GPU
 #pragma comment(lib,"cublas.lib")

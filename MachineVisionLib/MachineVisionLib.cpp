@@ -45,6 +45,7 @@ void cv2shell::CV2ShowVideo(DType dtVideoSrc, BOOL blIsNeedToReplay)
 	Mat mSrc;
 	VideoCapture video;
 	BOOL blIsNotOpen = TRUE;
+	DOUBLE dblFPS = 40.;
 
 	while (TRUE)
 	{
@@ -52,13 +53,14 @@ void cv2shell::CV2ShowVideo(DType dtVideoSrc, BOOL blIsNeedToReplay)
 		{
 			if (video.open(dtVideoSrc))
 			{
+				dblFPS = video.get(CV_CAP_PROP_FPS);
+
+				//video.set(CV_CAP_PROP_FRAME_WIDTH, 1280);
+				//video.set(CV_CAP_PROP_FRAME_HEIGHT, 960);
+
+				cout << video.get(CV_CAP_PROP_FRAME_WIDTH) << " x "  << video.get(CV_CAP_PROP_FRAME_HEIGHT) << endl;
+
 				blIsNotOpen = FALSE;
-
-				video.set(CV_CAP_PROP_FRAME_WIDTH, 1280);
-				video.set(CV_CAP_PROP_FRAME_HEIGHT, 960);
-
-				cout << video.get(CV_CAP_PROP_FRAME_WIDTH) << endl;
-				cout << video.get(CV_CAP_PROP_FRAME_HEIGHT) << endl;
 			}
 			else
 			{
@@ -71,7 +73,7 @@ void cv2shell::CV2ShowVideo(DType dtVideoSrc, BOOL blIsNeedToReplay)
 		{
 			String strWinName = String("ÊÓÆµÁ÷¡¾") + dtVideoSrc +  String("¡¿");
 			imshow(strWinName, mSrc);
-			if (waitKey(40) >= 0)
+			if (waitKey(1000.0 / dblFPS) == 27)
 				break;
 		}
 		else
@@ -95,6 +97,7 @@ void cv2shell::CV2ShowVideo(DType dtVideoSrc, PCB_VIDEOHANDLER pfunNetVideoHandl
 {
 	Mat mSrc;
 	VideoCapture video;
+	DOUBLE dblFPS = 40.0;
 
 	bool blIsNotOpen = TRUE;
 
@@ -103,7 +106,13 @@ void cv2shell::CV2ShowVideo(DType dtVideoSrc, PCB_VIDEOHANDLER pfunNetVideoHandl
 		if (blIsNotOpen)
 		{
 			if (video.open(dtVideoSrc))
+			{
+				dblFPS = video.get(CV_CAP_PROP_FPS);
+
+				cout << video.get(CV_CAP_PROP_FRAME_WIDTH) << " x " << video.get(CV_CAP_PROP_FRAME_HEIGHT) << endl;
+
 				blIsNotOpen = FALSE;
+			}
 			else
 			{
 				Sleep(1000);
@@ -118,7 +127,7 @@ void cv2shell::CV2ShowVideo(DType dtVideoSrc, PCB_VIDEOHANDLER pfunNetVideoHandl
 				pfunNetVideoHandler(mSrc, dw64InputParam);
 			}
 
-			if (waitKey(1) >= 0)
+			if (waitKey(1000.0 / dblFPS) == 27)
 				break;
 		}
 		else
