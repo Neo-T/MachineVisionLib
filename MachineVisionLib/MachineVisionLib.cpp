@@ -58,7 +58,7 @@ void cv2shell::CV2ShowVideo(DType dtVideoSrc, BOOL blIsNeedToReplay)
 				//video.set(CV_CAP_PROP_FRAME_WIDTH, 1280);
 				//video.set(CV_CAP_PROP_FRAME_HEIGHT, 960);
 
-				cout << video.get(CV_CAP_PROP_FRAME_WIDTH) << " x "  << video.get(CV_CAP_PROP_FRAME_HEIGHT) << endl;
+				cout << video.get(CV_CAP_PROP_FRAME_WIDTH) << " x " << video.get(CV_CAP_PROP_FRAME_HEIGHT) << " FPS: " << dblFPS << endl;
 
 				blIsNotOpen = FALSE;
 			}
@@ -109,7 +109,7 @@ void cv2shell::CV2ShowVideo(DType dtVideoSrc, PCB_VIDEOHANDLER pfunNetVideoHandl
 			{
 				dblFPS = video.get(CV_CAP_PROP_FPS);
 
-				cout << video.get(CV_CAP_PROP_FRAME_WIDTH) << " x " << video.get(CV_CAP_PROP_FRAME_HEIGHT) << endl;
+				cout << video.get(CV_CAP_PROP_FRAME_WIDTH) << " x " << video.get(CV_CAP_PROP_FRAME_HEIGHT) << " FPS: " << dblFPS << endl;
 
 				blIsNotOpen = FALSE;
 			}
