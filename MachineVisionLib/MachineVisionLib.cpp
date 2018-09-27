@@ -927,11 +927,30 @@ MACHINEVISIONLIB void cv2shell::MarkFaceWithRectangle(Mat& mImg, vector<Face>& v
 }
 
 //* 初始化轻型分类器，其实就是把DNN网络配置文件和训练好的模型加载到内存并据此建立DNN网络
-MACHINEVISIONLIB Net cv2shell::InitLightClassifier(vector<string>& vClassNames)
+MACHINEVISIONLIB Net cv2shell::InitLightDetector(vector<string>& vClassNames, ENUM_LIGHTDETECTOR enumDetector)
 {
 	Net objDNNNet;
+	string strVOCFile, strCfgFile, strModelFile;
 
-	ifstream ifsClassNamesFile("C:\\Windows\\System32\\models\\vgg_ssd\\voc.names");
+	//* 根据检测器类型设定要加载模型文件
+	switch (enumDetector)
+	{
+	case MOBNETSSD:
+		strVOCFile = "C:\\Windows\\System32\\models\\mobile_net_ssd\\voc.names";
+		strCfgFile = "C:\\Windows\\System32\\models\\mobile_net_ssd\\MobileNetSSD_deploy.prototxt";
+		strModelFile = "C:\\Windows\\System32\\models\\mobile_net_ssd\\MobileNetSSD_deploy.caffemodel";
+
+		break;
+
+	default:
+		strVOCFile = "C:\\Windows\\System32\\models\\vgg_ssd\\voc.names";
+		strCfgFile = "C:\\Windows\\System32\\models\\vgg_ssd\\deploy.prototxt";
+		strModelFile = "C:\\Windows\\System32\\models\\vgg_ssd\\VGG_VOC0712_SSD_300x300_iter_120000.caffemodel";
+		
+		break;
+	}
+
+	ifstream ifsClassNamesFile(strVOCFile);
 	if (ifsClassNamesFile.is_open())
 	{
 		string strClassName = "";
@@ -939,13 +958,10 @@ MACHINEVISIONLIB Net cv2shell::InitLightClassifier(vector<string>& vClassNames)
 			vClassNames.push_back(strClassName);
 	}
 	else
-		return objDNNNet;
-
-	String strModelCfgFile("C:\\Windows\\System32\\models\\vgg_ssd\\deploy.prototxt");
-	String strModelFile("C:\\Windows\\System32\\models\\vgg_ssd\\VGG_VOC0712_SSD_300x300_iter_120000.caffemodel");
+		return objDNNNet;	
 
 	try {
-		objDNNNet = readNetFromCaffe(strModelCfgFile, strModelFile);
+		objDNNNet = readNetFromCaffe(strCfgFile, strModelFile);
 	} catch (Exception& ex) {
 		cout << "DNN network load failed，please confirm that the config file『deploy.prototxt』and model file『VGG_SSD.caffemodel』 exits and the format is correct: " << endl;
 		cout << ex.what() << endl;
@@ -962,7 +978,7 @@ static void __ObjectDetect(Mat& mImg, Net& dnnNet, vector<string>& vClassNames, 
 		cvtColor(mImg, mImg, COLOR_BGRA2BGR);
 
 	//* 加载图片文件并归一化，size参数指定图片要缩放的目标尺寸，mean指定要减去的平均值的平均标量（红蓝绿三个颜色通道都要减）
-	Mat mInputBlob = blobFromImage(mImg, flScale, size, mean, FALSE, FALSE);
+	Mat mInputBlob = blobFromImage(mImg, flScale, size, mean, FALSE, FALSE);		
 
 	//* 设置网络输入
 	dnnNet.setInput(mInputBlob, "data");
@@ -970,7 +986,7 @@ static void __ObjectDetect(Mat& mImg, Net& dnnNet, vector<string>& vClassNames, 
 	//* 计算网络输出
 	Mat mDetection = dnnNet.forward("detection_out");
 
-	Mat mIdentifyObjects(mDetection.size[2], mDetection.size[3], CV_32F, mDetection.ptr<FLOAT>());
+	Mat mIdentifyObjects(mDetection.size[2], mDetection.size[3], CV_32F, mDetection.ptr<FLOAT>());	
 
 	for (int i = 0; i < mIdentifyObjects.rows; i++)
 	{
@@ -1191,7 +1207,7 @@ __lblLoop:
 }
 
 //* 初始化Yolo2分类器模型
-static Net __InitYolo2Classifier(const CHAR *pszClassNameFile, const CHAR *pszModelCfgFile, const CHAR *pszModelWeightFile, vector<string>& vClassNames)
+static Net __InitYolo2Detector(const CHAR *pszClassNameFile, const CHAR *pszModelCfgFile, const CHAR *pszModelWeightFile, vector<string>& vClassNames)
 {
 	Net objDNNNet;
 
@@ -1222,31 +1238,31 @@ static Net __InitYolo2Classifier(const CHAR *pszClassNameFile, const CHAR *pszMo
 }
 
 //* 初始化Yolo2分类器
-MACHINEVISIONLIB Net cv2shell::InitYolo2Classifier(vector<string>& vClassNames, ENUM_YOLO2_MODEL_TYPE enumModelType)
+MACHINEVISIONLIB Net cv2shell::InitYolo2Detector(vector<string>& vClassNames, ENUM_YOLO2_MODEL_TYPE enumModelType)
 {
 	switch (enumModelType)
 	{
 	case YOLO2_TINY_VOC:
-		return __InitYolo2Classifier("C:\\Windows\\System32\\models\\yolov2\\voc.names",
+		return __InitYolo2Detector("C:\\Windows\\System32\\models\\yolov2\\voc.names",
 									 "C:\\Windows\\System32\\models\\yolov2\\yolov2-tiny-voc.cfg",
 									 "C:\\Windows\\System32\\models\\yolov2\\yolov2-tiny-voc.weights",
 									 vClassNames);
 
 	case YOLO2_VOC:
-		return __InitYolo2Classifier("C:\\Windows\\System32\\models\\yolov2\\voc.names",
+		return __InitYolo2Detector("C:\\Windows\\System32\\models\\yolov2\\voc.names",
 									 "C:\\Windows\\System32\\models\\yolov2\\yolov2-voc.cfg",
 									 "C:\\Windows\\System32\\models\\yolov2\\yolov2-voc.weights",
 									 vClassNames);
 
 	case YOLO2_TINY:
-		return __InitYolo2Classifier("C:\\Windows\\System32\\models\\yolov2\\coco.names",
+		return __InitYolo2Detector("C:\\Windows\\System32\\models\\yolov2\\coco.names",
 									 "C:\\Windows\\System32\\models\\yolov2\\yolov2-tiny.cfg",
 									 "C:\\Windows\\System32\\models\\yolov2\\yolov2-tiny.weights",
 									 vClassNames);
 
 	case YOLO2:
 	default:
-		return __InitYolo2Classifier("C:\\Windows\\System32\\models\\yolov2\\coco.names",
+		return __InitYolo2Detector("C:\\Windows\\System32\\models\\yolov2\\coco.names",
 									 "C:\\Windows\\System32\\models\\yolov2\\yolov2.cfg",
 									 "C:\\Windows\\System32\\models\\yolov2\\yolov2.weights",
 									 vClassNames);

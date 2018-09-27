@@ -29,7 +29,7 @@
     <ClCompile Include="stdafx.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="ObjectClassifier.cpp">
+    <ClCompile Include="ObjectDetector.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

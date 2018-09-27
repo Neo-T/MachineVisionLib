@@ -44,7 +44,7 @@
 #include <caffe/layers/softmax_layer.hpp>
 #endif
 
-#define NEED_GPU	1
+#define NEED_GPU	0
 
 #if NEED_GPU
 #pragma comment(lib,"cublas.lib")
@@ -162,7 +162,11 @@ namespace cv2shell {
 	MACHINEVISIONLIB void MarkFaceWithRectangle(Net& dnnNet, const CHAR *pszImgName, const Size& size, FLOAT flConfidenceThreshold = 0.3, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 177.0, 123.0));
 	MACHINEVISIONLIB void MarkFaceWithRectangle(Net& dnnNet, const CHAR *pszImgName, FLOAT flConfidenceThreshold = 0.3, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUALRATIO, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 177.0, 123.0));
 
-	MACHINEVISIONLIB Net InitLightClassifier(vector<string>& vClassNames);	
+	typedef enum {
+		VGGSSD = 0,
+		MOBNETSSD
+	} ENUM_LIGHTDETECTOR;
+	MACHINEVISIONLIB Net InitLightDetector(vector<string>& vClassNames, ENUM_LIGHTDETECTOR enumDetector = VGGSSD);
 	MACHINEVISIONLIB void ObjectDetect(Mat& mImg, Net& dnnNet, vector<string>& vClassNames, vector<RecogCategory>& vObjects, FLOAT flConfidenceThreshold = 0.4, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUILATERAL, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 117.0, 123.0));
 	MACHINEVISIONLIB void ObjectDetect(const CHAR *pszImgName, Net& dnnNet, vector<string>& vClassNames, vector<RecogCategory>& vObjects, const Size& size, FLOAT flConfidenceThreshold = 0.4, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 117.0, 123.0));
 	MACHINEVISIONLIB void ObjectDetect(const CHAR *pszImgName, Net& dnnNet, vector<string>& vClassNames, vector<RecogCategory>& vObjects, FLOAT flConfidenceThreshold = 0.4, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUILATERAL, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 117.0, 123.0));
@@ -176,7 +180,7 @@ namespace cv2shell {
 	} ENUM_YOLO2_MODEL_TYPE;
 
 #define YOLO2_PROBABILITY_DATA_INDEX	5
-	MACHINEVISIONLIB Net InitYolo2Classifier(vector<string>& vClassNames, ENUM_YOLO2_MODEL_TYPE enumModelType = YOLO2);
+	MACHINEVISIONLIB Net InitYolo2Detector(vector<string>& vClassNames, ENUM_YOLO2_MODEL_TYPE enumModelType = YOLO2);
 	MACHINEVISIONLIB void Yolo2ObjectDetect(Mat& mImg, Net& objDNNNet, vector<string>& vClassNames, vector<RecogCategory>& vObjects, FLOAT flConfidenceThreshold = 0.4);	
 
 	//* 返回在DNN网络上花费的时间，单位毫秒

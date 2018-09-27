@@ -20,91 +20,51 @@ using namespace cv2shell;
 static const CHAR *pszCmdLineArgs = {
 	"{help    h   |     | print help message}"
 	"{@file       |     | input data source, image file path or rtsp stream address}"
-	"{model   m   | VGG | which model to use, value is VGG、Yolo2、Yolo2-Tiny、Yolo2-VOC、Yolo2-Tiny-VOC}"
-	"{picture p   |     | image file classification, non video calssification}"
+	"{model   m   | VGG | which model to use, value is VGG、Yolo2、Yolo2-Tiny、Yolo2-VOC、Yolo2-Tiny-VOC、MobileNetSSD}"
+	"{picture p   |     | image file detector, non video detector}"
 };
 
-//* VGG模型之图片分类器
-static void __VGGModelClassifierOfPicture(Net& objDNNNet, vector<string>& vClassNames, const string& strFile)
+//* 显示检测到物体（图片）
+static void __ShowDetectedObjectsOfPicture(Mat mShowImg, vector<RecogCategory>& vObjects, Net& objDNNNet)
 {
-	Mat mSrcImg = imread(strFile);
-
-	vector<RecogCategory> vObjects;
-	ObjectDetect(mSrcImg, objDNNNet, vClassNames, vObjects);
-
 	//* 识别耗费的时间	
 	cout << "detection time: " << GetTimeSpentInNetDetection(objDNNNet) << " ms" << endl;
 
-	MarkObjectWithRectangle(mSrcImg, vObjects);
-	
-	Mat mDstImg = mSrcImg;
+	MarkObjectWithRectangle(mShowImg, vObjects);
+
+	Mat mDstImg = mShowImg;
 
 	INT nPCScreenWidth = GetSystemMetrics(SM_CXSCREEN);
 	INT nPCScreenHeight = GetSystemMetrics(SM_CYSCREEN);
-	if (mSrcImg.cols > nPCScreenWidth || mSrcImg.rows > nPCScreenHeight)
+	if (mShowImg.cols > nPCScreenWidth || mShowImg.rows > nPCScreenHeight)
 	{
-		resize(mSrcImg, mDstImg, Size((mSrcImg.cols * 2) / 3, (mSrcImg.rows * 2) / 3), 0, 0, INTER_AREA);
+		resize(mShowImg, mDstImg, Size((mShowImg.cols * 2) / 3, (mShowImg.rows * 2) / 3), 0, 0, INTER_AREA);
 	}
-	
-	imshow("Object Classifier", mDstImg);
+
+	imshow("Object Detector", mDstImg);
 	waitKey(0);
 }
 
-//* VGG模型分类器
-static void __VGGModelClassifier(string& strFile, BOOL blIsPicture)
+//* 显示检测到物体（视频）
+static void __ShowDetectedObjectsOfVideo(Mat mShowFrame, const string& strShowWindowsName, vector<RecogCategory>& vObjects, Net& objDNNNet)
 {
-	vector<string> vClassNames;
-	Net objDNNNet = InitLightClassifier(vClassNames);
-	if (objDNNNet.empty())
-	{
-		cout << "The initialization lightweight classifier failed, probably because the model file or voc.names file was not found." << endl;
-		return;
-	}
-	
-	if (blIsPicture)
-	{
-		__VGGModelClassifierOfPicture(objDNNNet, vClassNames, strFile);
-	}
-	else
-	{
-		cout << "VGG model does not support video classifier." << endl;
-	}
+	DOUBLE dblTimeSpent = GetTimeSpentInNetDetection(objDNNNet);
+	ostringstream oss;
+	oss << "The time spent: " << dblTimeSpent << " ms";
+	putText(mShowFrame, oss.str(), Point(mShowFrame.cols - 250, 20), 0, 0.5, Scalar(0, 0, 255), 2);
+
+	MarkObjectWithRectangle(mShowFrame, vObjects);
+
+	imshow(strShowWindowsName, mShowFrame);
 }
 
-//* Yolo2模型之图片分类器
-static void __Yolo2ModelClassifierOfPicture(Net& objDNNNet, vector<string>& vClassNames, const string& strFile)
+//* 播放视频
+static BOOL __PlayVideo(VLCVideoPlayer& objVideoPlayer, const string& strFile, BOOL blIsVideoFile)
 {
-	Mat mSrcImg = imread(strFile);
-
-	vector<RecogCategory> vObjects;
-	Yolo2ObjectDetect(mSrcImg, objDNNNet, vClassNames, vObjects);
-
-	//* 识别耗费的时间
-	cout << "detection time: " << GetTimeSpentInNetDetection(objDNNNet) << " ms" << endl;
-
-	MarkObjectWithRectangle(mSrcImg, vObjects);
-
-	Mat mDstImg = mSrcImg;
-
-	INT nPCScreenWidth = GetSystemMetrics(SM_CXSCREEN);
-	INT nPCScreenHeight = GetSystemMetrics(SM_CYSCREEN);
-	if (mSrcImg.cols > nPCScreenWidth || mSrcImg.rows > nPCScreenHeight)
-	{
-		resize(mSrcImg, mDstImg, Size((mSrcImg.cols * 2) / 3, (mSrcImg.rows * 2) / 3), 0, 0, INTER_AREA);
-	}
-
-	imshow("Object Classifier", mDstImg);
-	waitKey(0);
-}
-
-//* Yolo2模型之视频分类器，参数blIsVideoFile为"真"，则意味这是一个视频文件，"假"则意味着是rtsp流
-static void __Yolo2ModelClassifierOfVideo(Net& objDNNNet, vector<string>& vClassNames, const string& strFile, BOOL blIsVideoFile)
-{
-	//* 声明一个VLC播放器，并建立播放窗口
-	VLCVideoPlayer objVideoPlayer;
+	//* 声明一个VLC播放器，并建立播放窗口	
 	cvNamedWindow(strFile.c_str(), CV_WINDOW_AUTOSIZE);
 
-	if(blIsVideoFile)
+	if (blIsVideoFile)
 		objVideoPlayer.OpenVideoFromFile(strFile.c_str(), NULL, strFile.c_str());
 	else
 		objVideoPlayer.OpenVideoFromeRtsp(strFile.c_str(), NULL, strFile.c_str(), 500);
@@ -113,8 +73,62 @@ static void __Yolo2ModelClassifierOfVideo(Net& objDNNNet, vector<string>& vClass
 	if (!objVideoPlayer.start())
 	{
 		cout << "Video playback failed!" << endl;
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+//* VGG模型之图片分类器
+static void __VGGModelDetectorOfPicture(Net& objDNNNet, vector<string>& vClassNames, const string& strFile)
+{
+	Mat mSrcImg = imread(strFile);
+
+	vector<RecogCategory> vObjects;
+	ObjectDetect(mSrcImg, objDNNNet, vClassNames, vObjects);
+
+	__ShowDetectedObjectsOfPicture(mSrcImg, vObjects, objDNNNet);
+}
+
+//* VGG模型分类器
+static void __VGGModelDetector(string& strFile, BOOL blIsPicture)
+{
+	vector<string> vClassNames;
+	Net objDNNNet = InitLightDetector(vClassNames);
+	if (objDNNNet.empty())
+	{
+		cout << "The initialization lightweight classifier failed, probably because the model file or voc.names file was not found." << endl;
 		return;
 	}
+	
+	if (blIsPicture)
+	{
+		__VGGModelDetectorOfPicture(objDNNNet, vClassNames, strFile);
+	}
+	else
+	{
+		cout << "VGG model does not support video classifier." << endl;
+	}
+}
+
+//* Yolo2模型之图片分类器
+static void __Yolo2ModelDetectorOfPicture(Net& objDNNNet, vector<string>& vClassNames, const string& strFile)
+{
+	Mat mSrcImg = imread(strFile);
+
+	vector<RecogCategory> vObjects;
+	Yolo2ObjectDetect(mSrcImg, objDNNNet, vClassNames, vObjects);
+
+	__ShowDetectedObjectsOfPicture(mSrcImg, vObjects, objDNNNet);
+}
+
+//* Yolo2模型之视频分类器，参数blIsVideoFile为"真"，则意味这是一个视频文件，"假"则意味着是rtsp流
+static void __Yolo2ModelDetectorOfVideo(Net& objDNNNet, vector<string>& vClassNames, const string& strFile, BOOL blIsVideoFile)
+{
+	//* 声明一个VLC播放器，并启动播放
+	VLCVideoPlayer objVideoPlayer;
+	if (!__PlayVideo(objVideoPlayer, strFile, blIsVideoFile))
+		return;
 
 	CHAR bKey;
 	BOOL blIsPaused = FALSE;
@@ -146,26 +160,19 @@ static void __Yolo2ModelClassifierOfVideo(Net& objDNNNet, vector<string>& vClass
 		vector<RecogCategory> vObjects;
 		Yolo2ObjectDetect(mSrcFrame, objDNNNet, vClassNames, vObjects);
 
-		DOUBLE dblTimeSpent = GetTimeSpentInNetDetection(objDNNNet);
-		ostringstream oss;
-		oss << "The time spent: " << dblTimeSpent << " ms";
-		putText(mSrcFrame, oss.str(), Point(mSrcFrame.cols - 250, 20), 0, 0.5, Scalar(0, 0, 255), 2);
-				
-		MarkObjectWithRectangle(mSrcFrame, vObjects);
-
-		imshow(strFile, mSrcFrame);
+		__ShowDetectedObjectsOfVideo(mSrcFrame, strFile, vObjects, objDNNNet);
 	}	
 
 	//* 其实不调用这个函数也可以，VLCVideoPlayer类的析构函数会主动调用的
 	objVideoPlayer.stop();
 
-	destroyAllWindows();
+	cv::destroyAllWindows();
 }
 
-static void __Yolo2ModelClassifier(string& strFile, BOOL blIsPicture, ENUM_YOLO2_MODEL_TYPE enumYolo2Type)
+static void __Yolo2ModelDetector(string& strFile, BOOL blIsPicture, ENUM_YOLO2_MODEL_TYPE enumYolo2Type)
 {
 	vector<string> vClassNames;
-	Net objDNNNet = InitYolo2Classifier(vClassNames, enumYolo2Type);
+	Net objDNNNet = InitYolo2Detector(vClassNames, enumYolo2Type);
 	if (objDNNNet.empty())
 	{
 		cout << "The initialization yolo2 classifier failed, probably because the model file or calss names file was not found." << endl;
@@ -174,7 +181,7 @@ static void __Yolo2ModelClassifier(string& strFile, BOOL blIsPicture, ENUM_YOLO2
 
 	if (blIsPicture)
 	{
-		__Yolo2ModelClassifierOfPicture(objDNNNet, vClassNames, strFile);
+		__Yolo2ModelDetectorOfPicture(objDNNNet, vClassNames, strFile);
 	}
 	else
 	{
@@ -182,13 +189,19 @@ static void __Yolo2ModelClassifier(string& strFile, BOOL blIsPicture, ENUM_YOLO2
 		std::transform(strFile.begin(), strFile.end(), strFile.begin(), ::tolower);		
 		if (strFile.find("rtsp:", 0) == 0)
 		{					
-			__Yolo2ModelClassifierOfVideo(objDNNNet, vClassNames, strFile, FALSE);
+			__Yolo2ModelDetectorOfVideo(objDNNNet, vClassNames, strFile, FALSE);
 		}
 		else
 		{			
-			__Yolo2ModelClassifierOfVideo(objDNNNet, vClassNames, strFile, TRUE);
+			__Yolo2ModelDetectorOfVideo(objDNNNet, vClassNames, strFile, TRUE);
 		}
 	}
+}
+
+//* MobileNetSSD预训练模型检测器
+static void __MobNetSSDModelDetector(string& strFile, BOOL blIsPicture)
+{
+
 }
 
 //* 通用分类器，对图像和视频进行物体分类，分类模型采用预训练模型和针对特定类别的自训练模型
@@ -228,23 +241,27 @@ int _tmain(int argc, _TCHAR* argv[])
 	//* 根据模型设置调用不同的函数进行处理
 	if (strModel == "VGG")
 	{	
-		__VGGModelClassifier(strFile, (BOOL)objCmdLineParser.get<bool>("picture"));
+		__VGGModelDetector(strFile, (BOOL)objCmdLineParser.get<bool>("picture"));
 	}
 	else if (strModel == "Yolo2")
 	{
-		__Yolo2ModelClassifier(strFile, (BOOL)objCmdLineParser.get<bool>("picture"), YOLO2);
+		__Yolo2ModelDetector(strFile, (BOOL)objCmdLineParser.get<bool>("picture"), YOLO2);
 	}
 	else if (strModel == "Yolo2-Tiny")
 	{
-		__Yolo2ModelClassifier(strFile, (BOOL)objCmdLineParser.get<bool>("picture"), YOLO2_TINY);
+		__Yolo2ModelDetector(strFile, (BOOL)objCmdLineParser.get<bool>("picture"), YOLO2_TINY);
 	}
 	else if (strModel == "Yolo2-VOC")
 	{
-		__Yolo2ModelClassifier(strFile, (BOOL)objCmdLineParser.get<bool>("picture"), YOLO2_VOC);
+		__Yolo2ModelDetector(strFile, (BOOL)objCmdLineParser.get<bool>("picture"), YOLO2_VOC);
 	}
 	else if (strModel == "Yolo2-Tiny-VOC")
 	{
-		__Yolo2ModelClassifier(strFile, (BOOL)objCmdLineParser.get<bool>("picture"), YOLO2_TINY_VOC);
+		__Yolo2ModelDetector(strFile, (BOOL)objCmdLineParser.get<bool>("picture"), YOLO2_TINY_VOC);
+	}
+	else if (strModel == "MobileNetSSD")
+	{
+		__MobNetSSDModelDetector(strFile, (BOOL)objCmdLineParser.get<bool>("picture"));
 	}
 	else 
 	{
