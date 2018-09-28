@@ -156,32 +156,10 @@ namespace cv2shell {
 	MACHINEVISIONLIB void FaceDetect(Net& dnnNet, const CHAR *pszImgName, vector<Face>& vFaces, FLOAT flConfidenceThreshold = 0.3, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUALRATIO, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 177.0, 123.0));
 	MACHINEVISIONLIB void FaceDetect(Net& dnnNet, const CHAR *pszImgName, vector<Face>& vFaces, const Size& size, FLOAT flConfidenceThreshold = 0.3, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 177.0, 123.0));
 
-
 	MACHINEVISIONLIB void MarkFaceWithRectangle(Mat& mImg, Mat& mFaces, FLOAT flConfidenceThreshold = 0.3, BOOL blIsShow = FALSE);
 	MACHINEVISIONLIB void MarkFaceWithRectangle(Mat& mImg, vector<Face>& vFaces, BOOL blIsShow = FALSE);
 	MACHINEVISIONLIB void MarkFaceWithRectangle(Net& dnnNet, const CHAR *pszImgName, const Size& size, FLOAT flConfidenceThreshold = 0.3, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 177.0, 123.0));
-	MACHINEVISIONLIB void MarkFaceWithRectangle(Net& dnnNet, const CHAR *pszImgName, FLOAT flConfidenceThreshold = 0.3, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUALRATIO, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 177.0, 123.0));
-
-	typedef enum {
-		VGGSSD = 0,
-		MOBNETSSD
-	} ENUM_LIGHTDETECTOR;
-	MACHINEVISIONLIB Net InitLightDetector(vector<string>& vClassNames, ENUM_LIGHTDETECTOR enumDetector = VGGSSD);
-	MACHINEVISIONLIB void ObjectDetect(Mat& mImg, Net& dnnNet, vector<string>& vClassNames, vector<RecogCategory>& vObjects, FLOAT flConfidenceThreshold = 0.4, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUILATERAL, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 117.0, 123.0));
-	MACHINEVISIONLIB void ObjectDetect(const CHAR *pszImgName, Net& dnnNet, vector<string>& vClassNames, vector<RecogCategory>& vObjects, const Size& size, FLOAT flConfidenceThreshold = 0.4, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 117.0, 123.0));
-	MACHINEVISIONLIB void ObjectDetect(const CHAR *pszImgName, Net& dnnNet, vector<string>& vClassNames, vector<RecogCategory>& vObjects, FLOAT flConfidenceThreshold = 0.4, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUILATERAL, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 117.0, 123.0));
-	MACHINEVISIONLIB void MarkObjectWithRectangle(Mat& mImg, vector<RecogCategory>& vObjects);
-	MACHINEVISIONLIB void MarkObjectWithRectangle(const CHAR *pszImgName, Net& dnnNet, vector<string>& vClassNames, const Size& size, FLOAT flConfidenceThreshold = 0.4, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 117.0, 123.0));
-	MACHINEVISIONLIB void MarkObjectWithRectangle(const CHAR *pszImgName, Net& dnnNet, vector<string>& vClassNames, FLOAT flConfidenceThreshold = 0.4, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUILATERAL, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 117.0, 123.0));
-	MACHINEVISIONLIB INT GetObjectNum(vector<RecogCategory>& vObjects, string strObjectName, FLOAT *pflConfidenceOfExist, FLOAT *pflConfidenceOfObjectNum); 
-
-	typedef enum {
-		YOLO2, YOLO2_TINY, YOLO2_VOC, YOLO2_TINY_VOC
-	} ENUM_YOLO2_MODEL_TYPE;
-
-#define YOLO2_PROBABILITY_DATA_INDEX	5
-	MACHINEVISIONLIB Net InitYolo2Detector(vector<string>& vClassNames, ENUM_YOLO2_MODEL_TYPE enumModelType = YOLO2);
-	MACHINEVISIONLIB void Yolo2ObjectDetect(Mat& mImg, Net& objDNNNet, vector<string>& vClassNames, vector<RecogCategory>& vObjects, FLOAT flConfidenceThreshold = 0.4);	
+	MACHINEVISIONLIB void MarkFaceWithRectangle(Net& dnnNet, const CHAR *pszImgName, FLOAT flConfidenceThreshold = 0.3, ENUM_IMGRESIZE_METHOD enumMethod = EIRSZM_EQUALRATIO, FLOAT flScale = 1.0f, const Scalar& mean = Scalar(104.0, 177.0, 123.0)); 
 
 	//* 返回在DNN网络上花费的时间，单位毫秒
 	MACHINEVISIONLIB DOUBLE GetTimeSpentInNetDetection(Net& objDNNNet);
@@ -227,6 +205,77 @@ private:
 	INT nMatchThresholdValue;
 	ST_IMG_RESIZE stImgResize;
 	vector<string *> vModelImgHashValues = vector<string *>();
+};
+
+//* 利用OCV2提供的DNN接口API设计的物体检测器接口类，类名前面的小i代表这是一个接口类，该类存在未实现的接口定义函数
+class MACHINEVISIONLIB iOCV2DNNObjectDetector {
+public:
+	iOCV2DNNObjectDetector(FLOAT flConfidenceThreshold) : o_flConfidenceThreshold(flConfidenceThreshold){}
+
+	virtual void detect(Mat& mSrcImg, vector<RecogCategory>& vObjects) = 0;
+	virtual void detect(Mat& mSrcImg, vector<RecogCategory>& vObjects, vector<string>& vstrFilter) = 0;
+	virtual void MarkObject(Mat& mShowImg, vector<RecogCategory>& vObjects);
+	virtual INT GetObjectNum(vector<RecogCategory>& vObjects, string strObjectName, FLOAT *pflConfidenceOfExist, FLOAT *pflConfidenceOfObjectNum);
+	virtual ~iOCV2DNNObjectDetector(void) {};	//* 缺省的析构函数
+
+	Net GetNet(void) const
+	{
+		return o_objDNNNet;
+	}
+
+	vector<string> GetClassNames(void) const
+	{
+		return o_vClassNames;
+	}
+
+protected:
+	FLOAT o_flConfidenceThreshold;	//* 置信度阈值	
+	Net o_objDNNNet;				//* 根据训练模型建立的网络，实现类在构造函数中为其赋值
+	vector<string> o_vClassNames;	//* 物体类别名称
+};
+
+//* OCV2 DNN接口之SSD检测器
+class MACHINEVISIONLIB OCV2DNNObjectDetectorSSD : public iOCV2DNNObjectDetector {
+public:
+	typedef enum {
+		VGGSSD = 0,
+		MOBNETSSD
+	} ENUM_DETECTOR;
+
+	//* 必须使用try-catch语句对捕捉初始化错误
+	OCV2DNNObjectDetectorSSD(FLOAT flConfidenceThreshold = 0.4F, ENUM_DETECTOR enumDetector = VGGSSD);
+
+	//* 检测整幅图像找出认识的物体
+	void detect(Mat& mSrcImg, vector<RecogCategory>& vObjects);
+	void detect(Mat& mSrcImg, vector<RecogCategory>& vObjects, vector<string>& vstrFilter);
+
+private:
+	DOUBLE o_dblNormalCoef;			//* 归一化系数
+	Scalar o_objMean;				//* 要减去的均值
+	ENUM_DETECTOR o_enumDetector;	//* 检测器类型
+};
+
+//* OCV2 DNN接口之YOLO2检测器
+class MACHINEVISIONLIB OCV2DNNObjectDetectorYOLO2 : public iOCV2DNNObjectDetector {
+public:
+	typedef enum {
+		YOLO2 = 0, 
+		YOLO2_TINY, 
+		YOLO2_VOC, 
+		YOLO2_TINY_VOC
+	} ENUM_DETECTOR;
+
+#define YOLO2_PROBABILITY_DATA_INDEX	5
+
+	//* 必须使用try-catch语句对捕捉初始化错误
+	OCV2DNNObjectDetectorYOLO2(FLOAT flConfidenceThreshold = 0.4F, ENUM_DETECTOR enumDetector = YOLO2);
+
+	//* 检测整幅图像找出认识的物体
+	void detect(Mat& mSrcImg, vector<RecogCategory>& vObjects);
+	void detect(Mat& mSrcImg, vector<RecogCategory>& vObjects, vector<string>& vstrFilter);
+
+private:	
+	ENUM_DETECTOR o_enumDetector;	//* 检测器类型
 };
 
 // 此类是从 MachineVisionLib.dll 导出的
