@@ -271,31 +271,10 @@ static void __FCBVLCPlayerFaceHandler(Mat& mVideoFrame, void *pvParam, UINT unCu
 }
 
 //* 主进程的入口处理函数
-static void __MainProcHandler(const CHAR *pszVideoPath, DWORD& dwSubprocID)
+static void __MainProcHandler(VLCVideoPlayer& objVideoPlayer, DWORD& dwSubprocID, BOOL& blIsRTSPStream)
 {
-	BOOL blIsRTSPStream;
-
 	//* 初始化DNN人脸检测网络
 	Net objDNNNet = cv2shell::InitFaceDetectDNNet();
-
-	//* 声明一个VLC播放器，并建立播放窗口
-	VLCVideoPlayer objVideoPlayer;
-	cvNamedWindow(pszVideoPath, CV_WINDOW_AUTOSIZE);
-
-	if ((CHAR)toupper((INT)pszVideoPath[0]) == 'R'
-		&& (CHAR)toupper((INT)pszVideoPath[1]) == 'T'
-		&& (CHAR)toupper((INT)pszVideoPath[2]) == 'S'
-		&& (CHAR)toupper((INT)pszVideoPath[3]) == 'P'
-		&& (CHAR)toupper((INT)pszVideoPath[4]) == ':')
-	{
-		blIsRTSPStream = TRUE;
-		objVideoPlayer.OpenVideoFromeRtsp(pszVideoPath, __FCBVLCPlayerFaceHandler, pszVideoPath, 500);
-	}
-	else
-	{
-		blIsRTSPStream = FALSE;
-		objVideoPlayer.OpenVideoFromFile(pszVideoPath, __FCBVLCPlayerFaceHandler, pszVideoPath);
-	}		
 
 	//* 设置播放器显示预处理函数的入口参数
 	ST_PLAYER_FCBDISPPREPROC_PARAM stFCBDispPreprocParam;
@@ -477,13 +456,39 @@ static void __SubProcHandler(void)
 }
 
 //* 主进程初始化
-static BOOL __MainProcInit(DWORD& dwSubprocID)
+static BOOL __MainProcInit(const CHAR *pszVideoPath, VLCVideoPlayer& objVideoPlayer, DWORD& dwSubprocID, BOOL& blIsRTSPStream)
 {
 	Rect objROIRect;
 	UINT unFrameROIDataBytes;
 
-	UINT unFrameWidth = DEFAULT_VIDEO_FRAME_WIDTH;
-	UINT unFrameHeight = (unFrameWidth / 16) * 9;
+	//* 打开视频文件或视频流
+	//* ================================================================
+	cvNamedWindow(pszVideoPath, CV_WINDOW_AUTOSIZE);
+
+	if ((CHAR)toupper((INT)pszVideoPath[0]) == 'R'
+		&& (CHAR)toupper((INT)pszVideoPath[1]) == 'T'
+		&& (CHAR)toupper((INT)pszVideoPath[2]) == 'S'
+		&& (CHAR)toupper((INT)pszVideoPath[3]) == 'P'
+		&& (CHAR)toupper((INT)pszVideoPath[4]) == ':')
+	{		
+		if (!objVideoPlayer.OpenVideoFromeRtsp(pszVideoPath, __FCBVLCPlayerFaceHandler, pszVideoPath, 500))
+			return FALSE;
+
+		blIsRTSPStream = TRUE;
+	}
+	else
+	{		
+		if (!objVideoPlayer.OpenVideoFromFile(pszVideoPath, __FCBVLCPlayerFaceHandler, pszVideoPath))
+			return FALSE;
+
+		blIsRTSPStream = FALSE;
+	}
+	//* ================================================================
+
+	//* 设置视频ROI区域，目的是适应模型要求的图像等边
+	Size objVideoResolution = objVideoPlayer.GetVideoResolution();
+	UINT unFrameWidth = objVideoResolution.width;
+	UINT unFrameHeight = objVideoResolution.height;
 	if (unFrameWidth > unFrameHeight)
 		objROIRect = Rect((unFrameWidth - unFrameHeight) / 2, 0, unFrameHeight, unFrameHeight);
 	else if (unFrameWidth < unFrameHeight)
@@ -578,13 +583,11 @@ static void __Uninit(void)
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	DWORD dwSubprocID;
+	cout << "Usage: " << argv[0] << " [rtsp address]" << endl;
+	cout << "Usage: " << argv[0] << " [video file path]" << endl;
 
 	if (argc != 1 && argc != 2)
 	{
-		cout << "Usage: " << argv[0] << " [rtsp address]" << endl;
-		cout << "Usage: " << argv[0] << " [video file path]" << endl;
-
 		return 0;
 	}
 
@@ -595,13 +598,17 @@ int _tmain(int argc, _TCHAR* argv[])
 	//* 建立“脸库”
 	if (argc == 2)
 	{		
-		if (!__MainProcInit(dwSubprocID))
+		DWORD dwSubprocID;
+		VLCVideoPlayer objVideoPlayer;
+		BOOL blIsRTSPStream;
+
+		if (!__MainProcInit(argv[1], objVideoPlayer, dwSubprocID, blIsRTSPStream))
 		{
 			cout << "Main process initialization failed" << endl;
 			return 0;
 		}		
 
-		__MainProcHandler(argv[1], dwSubprocID);
+		__MainProcHandler(objVideoPlayer, dwSubprocID, blIsRTSPStream);
 	}
 	else
 	{			

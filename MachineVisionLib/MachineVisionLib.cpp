@@ -1353,7 +1353,7 @@ MACHINEVISIONLIB DOUBLE cv2shell::GetTimeSpentInNetDetection(Net& objDNNNet)
 }
 
 //* 显示或者隐藏OpenCV的窗口，参数blIsShowing：TRUE，显示；FALSE，隐藏
-MACHINEVISIONLIB void cv2shell::ShowImageWindow(CHAR *pszWindowTitle, BOOL blIsShowing)
+MACHINEVISIONLIB void cv2shell::ShowImageWindow(const CHAR *pszWindowTitle, BOOL blIsShowing)
 {
 	HWND hWndOCVImgShow = (HWND)cvGetWindowHandle(pszWindowTitle);
 	HWND hWndParentOCVImgShow = GetParent(hWndOCVImgShow);

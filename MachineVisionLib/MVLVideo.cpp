@@ -29,6 +29,16 @@ void *VLCVideoPlayer::FCBLock(void *pvCBInputParam, void **ppvFrameBuf)
 	//*ppvFrameBuf = pobjVideoPlayer->o_mVideoFrameRGB.data;
 	*ppvFrameBuf = pobjVideoPlayer->o_pubaVideoFrameData;		
 
+	//* 获取视频尺寸
+	if (!pobjVideoPlayer->o_blIsInited)
+	{
+		UINT unWidth, unHeight;
+		libvlc_video_get_size(pobjVideoPlayer->o_pstVLCMediaPlayer, 0, &unWidth, &unHeight);
+		pobjVideoPlayer->o_objOriginalResolution = Size(unWidth, unHeight);
+
+		cout << "Video Size: " << unWidth << " x " << unHeight << " : " << pobjVideoPlayer->o_objOriginalResolution.empty() << endl;
+	}	
+
 	return *ppvFrameBuf;
 }
 
@@ -36,6 +46,10 @@ void *VLCVideoPlayer::FCBLock(void *pvCBInputParam, void **ppvFrameBuf)
 void VLCVideoPlayer::FCBUnlock(void *pvCBInputParam, void *pvFrameData, void* const *ppvFrameBuf)
 {
 	VLCVideoPlayer *pobjVideoPlayer = (VLCVideoPlayer *)pvCBInputParam;
+
+	if (!pobjVideoPlayer->o_blIsInited)
+		return;
+	
 	Mat mVideoFrameRGB = Mat(pobjVideoPlayer->o_unAdjustedHeight, pobjVideoPlayer->o_unAdjustedWidth, CV_8UC3, pobjVideoPlayer->o_pubaVideoFrameData);
 	cvtColor(mVideoFrameRGB, pobjVideoPlayer->o_mVideoFrame, CV_RGB2BGR);
 
@@ -46,6 +60,9 @@ void VLCVideoPlayer::FCBUnlock(void *pvCBInputParam, void *pvFrameData, void* co
 void VLCVideoPlayer::FCBDisplay(void *pvCBInputParam, void *pvFrameData)
 {
 	VLCVideoPlayer *pobjVideoPlayer = (VLCVideoPlayer *)pvCBInputParam;
+
+	if (!pobjVideoPlayer->o_blIsInited)
+		return;
 
 	if (pobjVideoPlayer->o_pfcbDispPreprocessor)
 	{		
@@ -70,9 +87,138 @@ Mat VLCVideoPlayer::GetNextFrame(void)
 	}
 }
 
+//* 获取视频的原始尺寸
+BOOL VLCVideoPlayer::__GetOriginalResolution(const CHAR *pszDisplayWinName)
+{
+	if (!o_pstVLCMediaPlayer)
+		return FALSE;
+
+	if(pszDisplayWinName)
+		cv2shell::ShowImageWindow(pszDisplayWinName, FALSE);
+
+#define DUMMY_BORDER_LEN	10
+	UCHAR ubaDummy[DUMMY_BORDER_LEN * DUMMY_BORDER_LEN * 3];
+	o_pubaVideoFrameData = ubaDummy;
+	libvlc_video_set_format(o_pstVLCMediaPlayer, "RV24", DUMMY_BORDER_LEN, DUMMY_BORDER_LEN, DUMMY_BORDER_LEN * 3);
+	if (libvlc_media_player_play(o_pstVLCMediaPlayer) < 0)
+	{
+		cout << "The libvlc_media_player_play() function failed, Please confirm that the video address is correct." << endl;
+
+		return FALSE;
+	}
+
+	//* 最长等待20秒，以期获得视频原始解析度
+	UINT unWaitTimeOut = 0;
+	while (unWaitTimeOut < 2000)
+	{
+		if (!o_objOriginalResolution.empty())
+		{
+			if (o_objOriginalResolution.width && o_objOriginalResolution.height)
+			{
+				//* 停止播放
+				libvlc_media_player_stop(o_pstVLCMediaPlayer);				
+
+				return TRUE;
+			}
+		}
+
+		Sleep(10);
+		unWaitTimeOut++;
+	}
+#undef DUMMY_BORDER_LEN
+
+	cout << "The VLCVideoPlayer::GetOriginalResolution() function timeout." << endl;
+
+	return FALSE;
+}
+
+//* 设置视频的播放尺寸
+void VLCVideoPlayer::__SetPlaybackResolution(const CHAR *pszDisplayWinName)
+{
+	ENUM_ASPECT_RATIO enumAspectRatio;	
+
+	//* 计算视频长宽比
+	if ((o_objOriginalResolution.width / 16) == (o_objOriginalResolution.height / 9))
+		enumAspectRatio = AR_16_9;
+	else if((o_objOriginalResolution.width / 4) == (o_objOriginalResolution.height / 3))
+		enumAspectRatio = AR_4_3;
+	else if ((o_objOriginalResolution.width / 5) == (o_objOriginalResolution.height / 3))
+		enumAspectRatio = AR_5_3;
+	else
+		enumAspectRatio = AR_OTHER;
+
+	//* 然后看看用户是否指定了要调整的尺寸
+	if (o_unAdjustedWidth)
+	{
+		switch (enumAspectRatio)
+		{
+		case AR_16_9:
+			o_unAdjustedHeight = (o_unAdjustedWidth / 16) * 9;
+			break;
+
+		case AR_4_3:
+			o_unAdjustedHeight = (o_unAdjustedWidth / 4) * 3;
+			break;
+
+		case AR_5_3:
+			o_unAdjustedHeight = (o_unAdjustedWidth / 5) * 3;
+			break;
+
+		default:
+			o_unAdjustedHeight = (UINT)(((FLOAT)o_objOriginalResolution.height) * (((FLOAT)o_unAdjustedWidth) / ((FLOAT)o_objOriginalResolution.width)));
+			break;
+		}		
+	}
+	else
+	{
+		//* 获取屏幕大小
+		INT nPCWidth = GetSystemMetrics(SM_CXSCREEN);
+		INT nPCHeight = GetSystemMetrics(SM_CYSCREEN);
+
+		//* 视频高度大于屏幕高度，则缩小至屏幕高度，基本山普通PC都是16：9或4：3或极少数5：3的，所以只要看视频高度是否超出即可，高度不超出，宽度肯定不超出
+		if (o_objOriginalResolution.height > nPCHeight)
+		{
+			o_unAdjustedHeight = nPCHeight;
+
+			switch (enumAspectRatio)
+			{
+			case AR_16_9:
+				o_unAdjustedWidth = (o_unAdjustedHeight / 9) * 16;
+				break;
+
+			case AR_4_3:
+				o_unAdjustedWidth = (o_unAdjustedHeight / 3) * 4;
+				break;
+
+			case AR_5_3:
+				o_unAdjustedWidth = (o_unAdjustedHeight / 3) * 5;
+				break;
+
+			default:
+				o_unAdjustedWidth = (UINT)(((FLOAT)o_objOriginalResolution.width) * (((FLOAT)o_unAdjustedHeight) / ((FLOAT)o_objOriginalResolution.height)));
+				break;
+			}
+		}
+		else
+		{
+			o_unAdjustedWidth = o_objOriginalResolution.width;
+			o_unAdjustedHeight = o_objOriginalResolution.height;
+		}
+	}
+
+	//* 分配视频数据接收缓冲区
+	o_unFrameDataBufSize = o_unAdjustedWidth * o_unAdjustedHeight * 3;
+	o_pubaVideoFrameData = new UCHAR[o_unFrameDataBufSize];
+	libvlc_video_set_format(o_pstVLCMediaPlayer, "RV24", o_unAdjustedWidth, o_unAdjustedHeight, o_unAdjustedWidth * 3);	//* 设定正常的播放格式
+
+	if (pszDisplayWinName)
+		cv2shell::ShowImageWindow(pszDisplayWinName, TRUE);
+
+	o_blIsInited = TRUE;
+}
+
 //* 打开一个视频文件
-void VLCVideoPlayer::OpenVideoFromFile(const CHAR *pszFile, PFCB_DISPLAY_PREPROCESSOR pfcbDispPreprocessor,
-									const CHAR *pszDisplayWinName, ENUM_ASPECT_RATIO enumAspectRatio)
+BOOL VLCVideoPlayer::OpenVideoFromFile(const CHAR *pszFile, PFCB_DISPLAY_PREPROCESSOR pfcbDispPreprocessor, const CHAR *pszDisplayWinName)
 {
 	UINT unArgc = sizeof(l_pbaVLCBaseArgs) / sizeof(l_pbaVLCBaseArgs[0]);
 	CHAR **ppbaVLCArgs = new CHAR *[unArgc];
@@ -80,16 +226,6 @@ void VLCVideoPlayer::OpenVideoFromFile(const CHAR *pszFile, PFCB_DISPLAY_PREPROC
 	{
 		ppbaVLCArgs[i] = l_pbaVLCBaseArgs[i];
 	}
-	
-	//* 初始化视频帧Matrix
-	if (!o_unAdjustedWidth)	
-		o_unAdjustedWidth = DEFAULT_VIDEO_FRAME_WIDTH;
-	if (enumAspectRatio == AR_16_9)	
-		o_unAdjustedHeight = (o_unAdjustedWidth / 16) * 9;
-	else
-		o_unAdjustedHeight = (o_unAdjustedWidth / 4) * 3;
-	o_unFrameDataBufSize = o_unAdjustedWidth * o_unAdjustedHeight * 3;	
-	o_pubaVideoFrameData = new UCHAR[o_unFrameDataBufSize];	
 
 	o_pstVLCInstance = libvlc_new(unArgc, ppbaVLCArgs);	
 	delete[] ppbaVLCArgs;	//* 删除刚才申请的参数缓冲区，libvlc_new()调用后就不用了
@@ -98,20 +234,27 @@ void VLCVideoPlayer::OpenVideoFromFile(const CHAR *pszFile, PFCB_DISPLAY_PREPROC
 	o_pstVLCMediaPlayer = libvlc_media_player_new_from_media(pstVLCMedia);
 	libvlc_media_release(pstVLCMedia);	//* libvlc_media_player_new_from_media()调用完毕后，释放就可以了
 
-	libvlc_video_set_callbacks(o_pstVLCMediaPlayer, FCBLock, FCBUnlock, FCBDisplay, this);								//* 设定回调函数
-	libvlc_video_set_format(o_pstVLCMediaPlayer, "RV24", o_unAdjustedWidth, o_unAdjustedHeight, o_unAdjustedWidth * 3);	//* 设定播放格式	
+	libvlc_video_set_callbacks(o_pstVLCMediaPlayer, FCBLock, FCBUnlock, FCBDisplay, this);	//* 设定回调函数
+
+	//* 获取视频的原始解析度（尺寸）
+	if (!__GetOriginalResolution(pszDisplayWinName))
+		return FALSE;
+	
+	//* 根据用户指定的宽度或显示屏尺寸自动调整视频播放尺寸
+	__SetPlaybackResolution(pszDisplayWinName);
 
 	if (pfcbDispPreprocessor)
 	{
 		o_strDisplayWinName = pszDisplayWinName;
 		o_pfcbDispPreprocessor = pfcbDispPreprocessor;
 	}
+
+	return TRUE;
 }
 
 //* 打开一个网络RTSP串流
-void VLCVideoPlayer::OpenVideoFromeRtsp(const CHAR *pszURL, PFCB_DISPLAY_PREPROCESSOR pfcbDispPreprocessor,
-									const CHAR *pszDisplayWinName, UINT unNetCachingTime, 
-									BOOL blIsUsedTCP, ENUM_ASPECT_RATIO enumAspectRatio)
+BOOL VLCVideoPlayer::OpenVideoFromeRtsp(const CHAR *pszURL, PFCB_DISPLAY_PREPROCESSOR pfcbDispPreprocessor,
+									const CHAR *pszDisplayWinName, UINT unNetCachingTime, BOOL blIsUsedTCP)
 {
 	UINT unBaseArgc = sizeof(l_pbaVLCBaseArgs) / sizeof(l_pbaVLCBaseArgs[0]);
 	UINT unArgc;
@@ -132,19 +275,6 @@ void VLCVideoPlayer::OpenVideoFromeRtsp(const CHAR *pszURL, PFCB_DISPLAY_PREPROC
 	{
 		ppbaVLCArgs[i] = l_pbaVLCBaseArgs[i];
 	}
-
-
-	//* 初始化视频帧Matrix
-	if (!o_unAdjustedWidth)
-		o_unAdjustedWidth = DEFAULT_VIDEO_FRAME_WIDTH;
-	if (enumAspectRatio == AR_16_9)
-		o_unAdjustedHeight = (o_unAdjustedWidth / 16) * 9;
-	else
-		o_unAdjustedHeight = (o_unAdjustedWidth / 4) * 3;
-	o_unFrameDataBufSize = o_unAdjustedWidth * o_unAdjustedHeight * 3;	
-	o_pubaVideoFrameData = new UCHAR[o_unFrameDataBufSize];
-
-	//cout << o_unAdjustedWidth << " * " << o_unAdjustedHeight << endl;
 	
 	o_pstVLCInstance = libvlc_new(unArgc, ppbaVLCArgs);
 	delete[] ppbaVLCArgs;	//* 删除刚才申请的参数缓冲区，libvlc_new()调用后就不用了
@@ -153,14 +283,22 @@ void VLCVideoPlayer::OpenVideoFromeRtsp(const CHAR *pszURL, PFCB_DISPLAY_PREPROC
 	o_pstVLCMediaPlayer = libvlc_media_player_new_from_media(pstVLCMedia);
 	libvlc_media_release(pstVLCMedia);	//* libvlc_media_player_new_from_media()调用完毕后，释放就可以了
 
-	libvlc_video_set_callbacks(o_pstVLCMediaPlayer, FCBLock, FCBUnlock, FCBDisplay, this);								//* 设定回调函数
-	libvlc_video_set_format(o_pstVLCMediaPlayer, "RV24", o_unAdjustedWidth, o_unAdjustedHeight, o_unAdjustedWidth * 3);	//* 设定播放格式
+	libvlc_video_set_callbacks(o_pstVLCMediaPlayer, FCBLock, FCBUnlock, FCBDisplay, this);	//* 设定回调函数																													//* 获取视频的原始解析度（尺寸）
+	
+	//* 获取视频的原始解析度（尺寸）
+	if (!__GetOriginalResolution(pszDisplayWinName))
+		return FALSE;
+
+	//* 根据用户指定的宽度或显示屏尺寸自动调整视频播放尺寸
+	__SetPlaybackResolution(pszDisplayWinName);
 
 	if (pfcbDispPreprocessor)
 	{
 		o_strDisplayWinName = pszDisplayWinName;
 		o_pfcbDispPreprocessor = pfcbDispPreprocessor;
-	}	
+	}
+
+	return TRUE;
 }
 
 //* 设置显示预处理函数的输入参数
