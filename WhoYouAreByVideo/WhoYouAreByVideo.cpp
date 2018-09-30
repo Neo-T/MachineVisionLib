@@ -381,6 +381,8 @@ static void __SubProcHandler(void)
 	objFaceDB.o_pobjVideoPredict = new FaceDatabase::VideoPredict(&objFaceDB);
 	//* =======================================================================================
 
+	//* 通知主进程，特征提取网络已加载完毕，可以打开视频进行人脸检测了
+	pstFaceDBHdr->blIsSubProcInitOK = TRUE;
 
 	ST_FACE staFace[SHM_FACE_DB_SIZE_MAX];
 	UCHAR *pubaROIGrayData = new UCHAR[pstFaceDBHdr->unFrameROIDataBytes];
@@ -543,6 +545,7 @@ static BOOL __MainProcInit(const CHAR *pszVideoPath, VLCVideoPlayer& objVideoPla
 	pstFaceDBHdr->unFrameROIDataBytes = unFrameROIDataBytes;
 
 	//* 启动子进程
+	pstFaceDBHdr->blIsSubProcInitOK = FALSE;
 	dwSubprocID = StartProcess("WhoYouAreByVideo.exe", NULL);
 	if (INVALID_PROC_ID == dwSubprocID)
 	{
@@ -552,6 +555,13 @@ static BOOL __MainProcInit(const CHAR *pszVideoPath, VLCVideoPlayer& objVideoPla
 		cout << "Sub process startup failure for face recognition, the process exit!" << endl;
 		return FALSE;
 	}
+
+	//* 等待子进程初始化完成
+	while (!pstFaceDBHdr->blIsSubProcInitOK)
+		Sleep(1000);
+
+	//* 再延时几秒，以待子进程进入实际的识别状态
+	Sleep(5000);
 
 	return TRUE;
 }

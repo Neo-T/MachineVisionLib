@@ -27,7 +27,8 @@ typedef struct _ST_SHM_FACE_DB_HDR_ {
 		UINT unWidth;
 		UINT unHeight;
 	} stROIRect;
-	UINT unFrameROIDataBytes;		//* 保存当前视频帧ROI区域数据的共享内存的大小	
+	UINT unFrameROIDataBytes;		//* 保存当前视频帧ROI区域数据的共享内存的大小
+	BOOL blIsSubProcInitOK;			//* 子进程是否已初始化完成
 } ST_SHM_FACE_DB_HDR, *PST_SHM_FACE_DB_HDR;
 
 //* 保存检测到的单张人脸信息，包括坐标、范围等数据
