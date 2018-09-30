@@ -202,6 +202,10 @@ static Mat __VLCPlayerFindFace(Net& objDNNNet, Mat& mFrame, Face& objFace)
 	else
 		mROI = mFrame;
 
+	//* 标出ROI区域
+	Rect objRect((mFrame.cols - mROI.cols) / 2, (mFrame.rows - mROI.rows) / 2, mROI.cols, mROI.rows);
+	rectangle(mFrame, objRect, Scalar(255, 0, 0), 2);
+
 	//* 检测人脸
 	Mat &matFaces = cv2shell::FaceDetect(objDNNNet, mROI);
 	if (matFaces.empty())

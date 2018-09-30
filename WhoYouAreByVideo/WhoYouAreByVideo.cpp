@@ -134,6 +134,11 @@ static void __FCBVLCPlayerFaceHandler(Mat& mVideoFrame, void *pvParam, UINT unCu
 	static UINT unFaceID = 0;
 	
 	Mat mROI = mVideoFrame(Rect(pstFaceDBHdr->stROIRect.x, pstFaceDBHdr->stROIRect.y, pstFaceDBHdr->stROIRect.unWidth, pstFaceDBHdr->stROIRect.unHeight));
+
+	//* ±ê³öROIÇøÓò
+	Rect objRect((mVideoFrame.cols - mROI.cols) / 2, (mVideoFrame.rows - mROI.rows) / 2, mROI.cols, mROI.rows);
+	rectangle(mVideoFrame, objRect, Scalar(255, 0, 0), 2);
+
 	Mat &matFaces = cv2shell::FaceDetect(*pstParam->pobjDNNNet, mROI);
 	if (matFaces.empty())
 		return;

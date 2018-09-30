@@ -36,7 +36,7 @@ void *VLCVideoPlayer::FCBLock(void *pvCBInputParam, void **ppvFrameBuf)
 		libvlc_video_get_size(pobjVideoPlayer->o_pstVLCMediaPlayer, 0, &unWidth, &unHeight);
 		pobjVideoPlayer->o_objOriginalResolution = Size(unWidth, unHeight);
 
-		cout << "Video Size: " << unWidth << " x " << unHeight << " : " << pobjVideoPlayer->o_objOriginalResolution.empty() << endl;
+		//cout << "Video Size: " << unWidth << " x " << unHeight << " : " << pobjVideoPlayer->o_objOriginalResolution.empty() << endl;
 	}	
 
 	return *ppvFrameBuf;
