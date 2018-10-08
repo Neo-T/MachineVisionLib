@@ -176,7 +176,7 @@ static void EHImgPerspecTrans_OnMouse(INT nEvent, INT x, INT y, INT nFlags, void
 		}
 	}
 
-	//* 在这个位置处理鼠标松开事件，三个if语句块的顺序不能变，这样才可避免程序继续相应用户针对某个角点的拖拽事件
+	//* 在这个位置处理鼠标松开事件，三个if语句块的顺序不能变，这样才可避免程序继续响应用户针对某个角点的拖拽事件
 	if (nEvent == EVENT_LBUTTONUP)
 	{ 
 		//* 还没选择完4个点，则继续添加之

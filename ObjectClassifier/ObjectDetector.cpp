@@ -15,13 +15,18 @@
 
 using namespace common_lib;
 using namespace cv2shell;
+BOOL blIsSetAlarmArea;		//* 是否设置人员入侵报警区域
+BOOL blIsIntrusionAlarm;	//* 是否开启人员入侵报警
+INT nAlarmAreaIdx;
 
 //* Usage，使用说明
 static const CHAR *pszCmdLineArgs = {
-	"{help    h   |     | print help message}"
-	"{@file       |     | input data source, image file path or rtsp stream address}"
-	"{model   m   | VGG | which model to use, value is VGG、Yolo2、Yolo2-Tiny、Yolo2-VOC、Yolo2-Tiny-VOC、MobileNetSSD}"
-	"{picture p   |     | image file detector, non video detector}"
+	"{help            h |     | print help message}"
+	"{@file             |     | input data source, image file path or rtsp stream address}"
+	"{model           m | VGG | which model to use, value is VGG、Yolo2、Yolo2-Tiny、Yolo2-VOC、Yolo2-Tiny-VOC、MobileNetSSD}"
+	"{picture         p |     | image file detector, non video detector}"
+	"{set_alarm_area  s |     | set up an alarm area for intrusion}"
+	"{intrusion_alarm a |     | intrusion alarm}"
 };
 
 //* 显示检测到物体（图片）
@@ -46,16 +51,14 @@ static void __ShowDetectedObjectsOfPicture(Mat mShowImg, vector<RecogCategory>& 
 }
 
 //* 显示检测到物体（视频）
-static void __ShowDetectedObjectsOfVideo(Mat mShowFrame, const string& strShowWindowsName, vector<RecogCategory>& vObjects, iOCV2DNNObjectDetector *pobjDetector)
+static void __MarkDetectedObjectsOfVideo(Mat mShowFrame, vector<RecogCategory>& vObjects, iOCV2DNNObjectDetector *pobjDetector)
 {
 	DOUBLE dblTimeSpent = GetTimeSpentInNetDetection(pobjDetector->GetNet());
 	ostringstream oss;
 	oss << "The time spent: " << dblTimeSpent << " ms";
 	putText(mShowFrame, oss.str(), Point(mShowFrame.cols - 250, 20), 0, 0.5, Scalar(0, 0, 255), 2);
 
-	pobjDetector->MarkObject(mShowFrame, vObjects);
-
-	imshow(strShowWindowsName, mShowFrame);
+	pobjDetector->MarkObject(mShowFrame, vObjects);	
 }
 
 //* 播放视频
@@ -90,20 +93,173 @@ static void __OCV2DNNPictureDetector(const string& strFile, iOCV2DNNObjectDetect
 	__ShowDetectedObjectsOfPicture(mSrcImg, vObjects, pobjDetector);
 }
 
+//* 用于设置入侵检测区域的鼠标事件回调函数
+static void EHSetAlarmArea_OnMouse(INT nEvent, INT x, INT y, INT nFlags, void *pvRect)
+{
+	//* 注意设置入侵检测区域时一定要顺时针设置4个点
+	if (nEvent == EVENT_LBUTTONUP)
+	{		
+		((vector<Point> *)pvRect)->push_back(Point(x, y));						
+	}
+}
+
+//* 保存设置的入侵检测区域
+static void __SaveAlarmArea(vector<vector<Point>>& vvptRects)
+{
+	FileStorage objFS("alarm_area.xml", FileStorage::WRITE);
+	ostringstream oss;
+	INT nRectNum = vvptRects.size();
+	objFS << "RECT_NUM" << nRectNum;
+	for (INT i = 0; i < nRectNum; i++)
+	{
+		oss.str("");
+		oss << "RECT_" << i;
+		objFS << oss.str() << vvptRects[i];
+	}
+
+	objFS.release();
+}
+
+//* 显示设置的入侵检测报警区域
+static void __ShowAlarmArea(Mat& mShowFrame, vector<vector<Point>>& vvptRects, vector<Point>& vptRect)
+{
+	if (blIsSetAlarmArea)
+	{
+		for (INT i = 0; i < vptRect.size(); i++)
+		{
+			circle(mShowFrame, vptRect[i], 2, Scalar(0, 255, 0), 2);			
+			if (i)
+				line(mShowFrame, vptRect[i - 1], vptRect[i], Scalar(0, 0, 255), 2);
+		}
+
+		//* 保存入侵检测区域
+		if (vptRect.size() > 3)
+		{			
+			vvptRects.push_back(vptRect);
+
+			vptRect.clear();
+		}
+	}
+
+	//* 画出入侵检测区域
+	for (INT i = 0; i < vvptRects.size(); i++)
+	{
+		for (INT k = 0; k < vvptRects[i].size(); k++)
+		{
+			circle(mShowFrame, vvptRects[i][k], 2, Scalar(0, 255, 0), 2);
+			if (k)
+			{
+				if (nAlarmAreaIdx == i)
+					line(mShowFrame, vvptRects[i][k - 1], vvptRects[i][k], Scalar(0, 0, 255), 2);
+				else
+					line(mShowFrame, vvptRects[i][k - 1], vvptRects[i][k], Scalar(0, 255, 0), 2);
+			}				
+		}
+
+		if(nAlarmAreaIdx == i)
+			line(mShowFrame, vvptRects[i][3], vvptRects[i][0], Scalar(0, 0, 255), 2);
+		else
+			line(mShowFrame, vvptRects[i][3], vvptRects[i][0], Scalar(0, 255, 0), 2);
+	}
+}
+
+//* 加载报警区域
+static void __LoadAlarmArea(vector<vector<Point>>& vvptRects)
+{
+	INT nRectNum = 0;
+	FileStorage objFS("alarm_area.xml", FileStorage::READ);
+	objFS["RECT_NUM"] >> nRectNum;
+
+	ostringstream oss;
+	for (INT i = 0; i < nRectNum; i++)
+	{		
+		vector<Point> vptRect;
+		oss << "RECT_" << i;
+		objFS[oss.str()] >> vptRect;
+		vvptRects.push_back(vptRect);		
+		oss.str("");
+	}
+
+	objFS.release();
+}
+
+//* 入侵检测
+static INT __IntrusionDetect(vector<vector<Point>>& vvptRects, vector<RecogCategory>& vObjects)
+{
+	vector<RecogCategory>::iterator itObject = vObjects.begin();
+
+	for (; itObject != vObjects.end(); itObject++)
+	{
+		RecogCategory object = *itObject;
+
+		Point ptBottomCenter(object.nLeftTopX + (object.nRightBottomX - object.nLeftTopX) / 2, object.nRightBottomY - 50);
+		//cout << "Center: " << ptBottomCenter << endl;
+		for (INT i = 0; i < vvptRects.size(); i++)
+		{
+			//* 顺时针设置4个点
+			Point ptLeftTop     = vvptRects[i][0];
+			Point ptRightTop    = vvptRects[i][1];
+			Point ptLeftBottom  = vvptRects[i][3];
+			Point ptRightBottom = vvptRects[i][2];
+
+			INT nMinX = 0x7FFFFFFF, nMaxX = 0, nMinY = 0x7FFFFFFF, nMaxY = 0;
+			for (INT k = 0; k < 4; k++)
+			{
+				if (vvptRects[i][k].x < nMinX)
+					nMinX = vvptRects[i][k].x;
+				if (vvptRects[i][k].x > nMaxX)
+					nMaxX = vvptRects[i][k].x;
+				if (vvptRects[i][k].y < nMinY)
+					nMinY = vvptRects[i][k].y;
+				if (vvptRects[i][k].y > nMaxY)
+					nMaxY = vvptRects[i][k].y;
+			}
+
+			//cout << "LT: " << ptLeftTop << " RT: " << ptRightTop << " LB: " << ptLeftBottom << " RB: " << ptRightBottom << endl;
+			//cout << "X: [" << nMinX << ", " << nMaxX << "] Y: [" << nMinY << ", " << nMaxY << "]" << endl;
+
+			if (ptBottomCenter.x > nMinX
+				&& ptBottomCenter.x < nMaxX
+				&& ptBottomCenter.y > nMinY
+				&& ptBottomCenter.y < nMaxY)
+			{
+				return i;
+			}
+		}
+	}
+
+	return 0xFFFFFFFF;
+}
+
 //* OCV2 DNN接口之视频检测器，参数blIsVideoFile为"真"，则意味这是一个视频文件，"假"则意味着是rtsp流
 static void __OCV2DNNVideoDetector(const string& strFile, iOCV2DNNObjectDetector *pobjDetector, BOOL blIsVideoFile)
 {
+	vector<vector<Point>> vvptRects;
+	vector<Point> vptRect;	
+
+	nAlarmAreaIdx = 0xFFFFFFFF;
+
 	//* 声明一个VLC播放器，并启动播放
 	VLCVideoPlayer objVideoPlayer;
 	if (!__PlayVideo(objVideoPlayer, strFile, blIsVideoFile))
 		return;
 
-#define FILTER_TEST	 0	//* 是否需要测试过滤器
+	//* 是否开启了设置报警区域项
+	if (blIsSetAlarmArea)
+	{
+		//* 注册回调函数
+		setMouseCallback(strFile, EHSetAlarmArea_OnMouse, &vptRect);
+	}
 
-#if FILTER_TEST
+	//* 开启了入侵检测，则只检测人体不检测其它物体了
 	vector<string> vstrFilter;
-	vstrFilter.push_back(string("person"));
-#endif
+	if (blIsIntrusionAlarm)
+	{		
+		vstrFilter.push_back(string("person"));
+
+		//* 加载区域数据
+		__LoadAlarmArea(vvptRects);
+	}
 
 	CHAR bKey;
 	BOOL blIsPaused = FALSE;
@@ -132,14 +288,24 @@ static void __OCV2DNNVideoDetector(const string& strFile, iOCV2DNNObjectDetector
 		if (mSrcFrame.empty())
 			continue;
 
-		vector<RecogCategory> vObjects;
-#if FILTER_TEST
-		pobjDetector->detect(mSrcFrame, vObjects, vstrFilter);
-#else
-		pobjDetector->detect(mSrcFrame, vObjects);
-#endif
+		if (!blIsSetAlarmArea)
+		{
+			vector<RecogCategory> vObjects;
+			
+			pobjDetector->detect(mSrcFrame, vObjects, vstrFilter);						
 
-		__ShowDetectedObjectsOfVideo(mSrcFrame, strFile, vObjects, pobjDetector);
+			//* 开启了入侵检测
+			if (blIsIntrusionAlarm)
+			{
+				nAlarmAreaIdx = __IntrusionDetect(vvptRects, vObjects);
+			}
+			else
+				__MarkDetectedObjectsOfVideo(mSrcFrame, vObjects, pobjDetector);
+		}
+
+		__ShowAlarmArea(mSrcFrame, vvptRects, vptRect);		
+
+		imshow(strFile, mSrcFrame);
 	}
 
 	//* 其实不调用这个函数也可以，VLCVideoPlayer类的析构函数会主动调用的
@@ -147,9 +313,12 @@ static void __OCV2DNNVideoDetector(const string& strFile, iOCV2DNNObjectDetector
 
 	cv::destroyAllWindows();
 
-#undef FILTER_TEST
+	//* 如果是设置入侵检测区域则保存设置好的区域数据
+	if (blIsSetAlarmArea)
+	{
+		__SaveAlarmArea(vvptRects);
+	}
 }
-
 
 //* OCV2 DNN接口之SSD模型检测器
 static void __OCV2DNNSSDModelDetector(string& strFile, BOOL blIsPicture, OCV2DNNObjectDetectorSSD::ENUM_DETECTOR enumSSDType)
@@ -256,6 +425,15 @@ int _tmain(int argc, _TCHAR* argv[])
 	if (objCmdLineParser.has("model"))
 	{
 		strModel = objCmdLineParser.get<string>("model");
+	}
+
+	//* 读取报警参数设置
+	blIsSetAlarmArea   = (BOOL)objCmdLineParser.get<bool>("set_alarm_area");
+	blIsIntrusionAlarm = (BOOL)objCmdLineParser.get<bool>("intrusion_alarm");	
+	if (blIsSetAlarmArea && blIsIntrusionAlarm)
+	{
+		cout << "Parameters set_alarm_area and intrusion_alarm cannot be TRUE at the same time." << endl;
+		return 0;
 	}
 
 	//* 根据模型设置调用不同的函数进行处理

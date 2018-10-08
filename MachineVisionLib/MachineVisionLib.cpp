@@ -1169,18 +1169,25 @@ void OCV2DNNObjectDetectorSSD::detect(Mat& mSrcImg, vector<RecogCategory>& vObje
 	vector<RecogCategory> vOriginalObjects;
 	__SSDObjectDetect(mEquilateralImg, o_objDNNNet, o_vClassNames, vOriginalObjects, Size(300, 300), objAddedEdgeSize, o_flConfidenceThreshold, o_dblNormalCoef, o_objMean);
 
-	//* 取出参数vstrFilter指定的类别，其余的丢弃
-	for (INT i = 0; i < vstrFilter.size(); i++)
+	if (!vstrFilter.empty())
 	{
-		for (INT k = 0; k < vOriginalObjects.size(); k++)
+		//* 取出参数vstrFilter指定的类别，其余的丢弃
+		for (INT i = 0; i < vstrFilter.size(); i++)
 		{
-			if (vOriginalObjects[k].strCategoryName == vstrFilter[i])
+			for (INT k = 0; k < vOriginalObjects.size(); k++)
 			{
-				vObjects.push_back(vOriginalObjects[k]);
-				break;
+				if (vOriginalObjects[k].strCategoryName == vstrFilter[i])
+				{
+					vObjects.push_back(vOriginalObjects[k]);
+					break;
+				}
 			}
-		}		
+		}
 	}
+	else
+	{
+		vObjects = vOriginalObjects;
+	}	
 }
 
 //* 初始化Yolo2分类器模型
@@ -1328,18 +1335,23 @@ void OCV2DNNObjectDetectorYOLO2::detect(Mat& mSrcImg, vector<RecogCategory>& vOb
 	vector<RecogCategory> vOriginalObjects;
 	detect(mSrcImg, vOriginalObjects);
 
-	//* 取出参数vstrFilter指定的类别，其余的丢弃
-	for (INT i = 0; i < vstrFilter.size(); i++)
+	if (!vstrFilter.empty())
 	{
-		for (INT k = 0; k < vOriginalObjects.size(); k++)
+		//* 取出参数vstrFilter指定的类别，其余的丢弃
+		for (INT i = 0; i < vstrFilter.size(); i++)
 		{
-			if (vOriginalObjects[k].strCategoryName == vstrFilter[i])
+			for (INT k = 0; k < vOriginalObjects.size(); k++)
 			{
-				vObjects.push_back(vOriginalObjects[k]);
-				break;
+				if (vOriginalObjects[k].strCategoryName == vstrFilter[i])
+				{
+					vObjects.push_back(vOriginalObjects[k]);
+					break;
+				}
 			}
 		}
 	}
+	else
+		vObjects = vOriginalObjects;
 }
 
 //* 返回在DNN网络上花费的时间，单位毫秒

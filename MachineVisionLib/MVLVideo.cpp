@@ -175,10 +175,10 @@ void VLCVideoPlayer::__SetPlaybackResolution(const CHAR *pszDisplayWinName)
 		INT nPCWidth = GetSystemMetrics(SM_CXSCREEN);
 		INT nPCHeight = GetSystemMetrics(SM_CYSCREEN);
 
-		//* 视频高度大于屏幕高度，则缩小至屏幕高度，基本山普通PC都是16：9或4：3或极少数5：3的，所以只要看视频高度是否超出即可，高度不超出，宽度肯定不超出
-		if (o_objOriginalResolution.height > nPCHeight)
+		//* 视频高度大于屏幕高度，则缩小至屏幕高度，基本上普通PC都是16：9或4：3或极少数5：3的，所以只要看视频高度是否超出即可，高度不超出，宽度肯定不超出
+		if (o_objOriginalResolution.height > nPCHeight - 40)
 		{
-			o_unAdjustedHeight = nPCHeight;
+			o_unAdjustedHeight = nPCHeight - 40;	//* 减去播放器窗口的边，这样才能完整显露出实际的视频播放窗口
 
 			switch (enumAspectRatio)
 			{
