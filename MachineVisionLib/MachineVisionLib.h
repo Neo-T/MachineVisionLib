@@ -212,7 +212,7 @@ class MACHINEVISIONLIB iOCV2DNNObjectDetector {
 public:
 	iOCV2DNNObjectDetector(FLOAT flConfidenceThreshold) : o_flConfidenceThreshold(flConfidenceThreshold){}
 
-	virtual void detect(Mat& mSrcImg, vector<RecogCategory>& vObjects) = 0;
+	virtual void detect(Mat& mSrcImg, vector<RecogCategory>& vObjects) = 0;		//* 纯虚函数，派生类必须实现，去掉"=0"，就不存在这种强制要求了
 	virtual void detect(Mat& mSrcImg, vector<RecogCategory>& vObjects, vector<string>& vstrFilter) = 0;
 	virtual void MarkObject(Mat& mShowImg, vector<RecogCategory>& vObjects);
 	virtual INT GetObjectNum(vector<RecogCategory>& vObjects, string strObjectName, FLOAT *pflConfidenceOfExist, FLOAT *pflConfidenceOfObjectNum);
