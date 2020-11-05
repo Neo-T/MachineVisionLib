@@ -109,12 +109,14 @@ static void __SaveAlarmArea(vector<vector<Point>>& vvptRects)
 	FileStorage objFS("alarm_area.xml", FileStorage::WRITE);
 	ostringstream oss;
 	INT nRectNum = vvptRects.size();
+	//cout << "__SaveAlarmArea: " << nRectNum << endl;
 	objFS << "RECT_NUM" << nRectNum;
 	for (INT i = 0; i < nRectNum; i++)
 	{
 		oss.str("");
 		oss << "RECT_" << i;
 		objFS << oss.str() << vvptRects[i];
+		//cout << oss.str() << endl;
 	}
 
 	objFS.release();
